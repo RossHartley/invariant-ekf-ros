@@ -10,6 +10,7 @@ enum MeasurementType {EMPTY, IMU, LANDMARK};
 class Measurement {
 
     public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         Measurement();
         Measurement(const sensor_msgs::Imu::ConstPtr& msg);
         double getTime();

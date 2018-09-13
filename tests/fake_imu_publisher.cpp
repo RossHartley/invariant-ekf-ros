@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
     ros::NodeHandle n;
     // Create Fake IMU publisher
     ros::Publisher imu_pub = n.advertise<sensor_msgs::Imu>("/imu", 1000);
-    ros::Rate loop_rate(100);
+    ros::Rate loop_rate(1);
 
     uint32_t seq = 0;
     while (ros::ok()) {

@@ -16,13 +16,8 @@ void InEKF_ROS::run() {
     // Subscribe to all publishers
     this->subscribe();
 
-    // Tests
-    Eigen::VectorXd m = Eigen::VectorXd::Zero(6);
-    filter_.Propagate(m, 0.1);
-    cout << filter_.getState() << endl;
-
     // Start main processing thread
-    //filtering_thread_ = std::thread([this]{this->mainFilteringThread();});
+    filtering_thread_ = std::thread([this]{this->mainFilteringThread();});
     ros::spin();
 }    
 
@@ -70,10 +65,10 @@ void InEKF_ROS::mainFilteringThread() {
                     ROS_INFO("Propagating state with IMU measurement.");
                     t = m_ptr->getTime();
                     m = imu_ptr_last->getData();
-                    cout << "t, t_last, dt: " << t << ", " << t_last << ", " << t-t_last << endl;
-                    cout << "IMU data: \n" << imu_ptr_last->getData() << endl;
+                    //cout << "t, t_last, dt: " << t << ", " << t_last << ", " << t-t_last << endl;
+                    //cout << "IMU data: \n" << imu_ptr_last->getData() << endl;
                     filter_.Propagate(m, t - t_last);
-                    cout << "queue size: " << m_queue_.size() << endl;
+                    //cout << "queue size: " << m_queue_.size() << endl;
                     cout << filter_.getState() << endl;
                     t_last = t;
                     imu_ptr_last = m_ptr;
