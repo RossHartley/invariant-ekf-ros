@@ -1,17 +1,37 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(invariant-ekf-ros)
+project(inekf_ros)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED COMPONENTS 
+  roscpp
+  std_msgs
+  sensor_msgs
+)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
+# InEKF 
+find_package(inekf REQUIRED)
+include_directories(${inekf_INCLUDE_DIRS})
+message("inekf_INCLUDE_DIR: " ${inekf_INCLUDE_DIRS})
+link_directories(${inekf_LIBRARY_DIRS})
+message("inekf_LIBRARY_DIRS: " ${inekf_LIBRARY_DIRS})
+
+# Boost
+find_package(Boost 1.58 REQUIRED COMPONENTS system)
+include_directories(${Boost_INCLUDE_DIR})
+message("Boost_INCLUDE_DIR: " ${Boost_INCLUDE_DIR})
+
+# Eigen 
+find_package(Eigen3 REQUIRED)
+include_directories(${EIGEN3_INCLUDE_DIR})
+message("EIGEN3_INCLUDE_DIR: " ${EIGEN3_INCLUDE_DIR})
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -99,9 +119,9 @@ find_package(catkin REQUIRED)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+   INCLUDE_DIRS include
 #  LIBRARIES invariant-ekf-ros
-#  CATKIN_DEPENDS other_catkin_pkg
+   CATKIN_DEPENDS std_msgs sensor_msgs
 #  DEPENDS system_lib
 )
 
@@ -112,9 +132,10 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
-# ${catkin_INCLUDE_DIRS}
+  ${PROJECT_SOURCE_DIR}/include
+  ${catkin_INCLUDE_DIRS}
 )
+
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
@@ -129,7 +150,11 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/invariant-ekf-ros_node.cpp)
+file(GLOB src_files
+    "${PROJECT_SOURCE_DIR}/src/*.cpp"
+)
+add_executable(inekf_node src/inekf_node.cpp ${src_files})
+add_executable(fake_imu_publisher_node tests/fake_imu_publisher.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -142,9 +167,15 @@ include_directories(
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(${PROJECT_NAME}_node
-#   ${catkin_LIBRARIES}
-# )
+message("inekf_LIBRARIES: " ${inekf_LIBRARIES})
+target_link_libraries(inekf_node
+    ${catkin_LIBRARIES}
+    ${inekf_LIBRARIES}
+    ${Boost_LIBRARIES}
+)
+target_link_libraries(fake_imu_publisher_node
+    ${catkin_LIBRARIES}
+)
 
 #############
 ## Install ##

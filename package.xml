@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>invariant-ekf-ros</name>
+  <name>inekf_ros</name>
   <version>0.0.0</version>
   <description>The invariant-ekf-ros package</description>
 
@@ -48,6 +48,10 @@
   <!--   <test_depend>gtest</test_depend> -->
   <!-- Use doc_depend for packages you need only for building documentation: -->
   <!--   <doc_depend>doxygen</doc_depend> -->
+
+  <depend>roscpp</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
   <buildtool_depend>catkin</buildtool_depend>
 
 

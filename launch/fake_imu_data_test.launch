@@ -1,0 +1,9 @@
+<launch>
+  
+  <!-- Create fake IMU data publisher-->
+  <node name="fake_imu_publisher" pkg="invariant-ekf-ros" type="fake_imu_publisher_node" />
+
+  <!-- Run Invariant EKF -->
+  <node name="invariant_ekf" pkg="invariant-ekf-ros" type="invariant-ekf-ros_node" output="screen" />
+
+</launch>
