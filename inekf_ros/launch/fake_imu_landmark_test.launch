@@ -1,0 +1,12 @@
+<launch>
+  
+  <!-- Create fake IMU data publisher-->
+  <node name="fake_imu_publisher" pkg="inekf_ros" type="fake_imu_publisher_node" />
+
+  <!-- Create fake landmark data publisher-->
+  <node name="fake_landmark_publisher" pkg="inekf_ros" type="fake_landmark_publisher_node" />
+
+  <!-- Run Invariant EKF -->
+  <node name="invariant_ekf" pkg="inekf_ros" type="inekf_node" output="screen" />
+
+</launch>

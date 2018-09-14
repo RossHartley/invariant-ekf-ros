@@ -31,7 +31,6 @@ void InEKF_ROS::subscribe() {
 void InEKF_ROS::imuCallback(const sensor_msgs::Imu::ConstPtr& msg) {
     shared_ptr<Measurement> ptr(new Measurement(msg));
     m_queue_.push(ptr);
-    //this_thread::sleep_for(chrono::milliseconds(1000));
 }
 
 

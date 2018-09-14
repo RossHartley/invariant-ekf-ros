@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
     if (nh.hasParam("rate")) {
         nh.getParam("rate", rate);
     } else {
-        rate = 1;
+        rate = 100;
     }
     cout << "Publishing IMU at " << rate << " Hz." << endl;
     ros::Rate loop_rate(rate);
@@ -47,10 +47,6 @@ int main(int argc, char **argv) {
         msg.linear_acceleration.x = 0;
         msg.linear_acceleration.y = 0;
         msg.linear_acceleration.z = 9.81;
-
-        //stringstream ss;
-        //ss << "hello world!";
-        //ROS_INFO("%s", ss.str().c_str());
 
         // Send message
         imu_pub.publish(msg);

@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   sensor_msgs
+  inekf_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -127,7 +128,7 @@ message("EIGEN3_INCLUDE_DIR: " ${EIGEN3_INCLUDE_DIR})
 catkin_package(
    INCLUDE_DIRS include
 #  LIBRARIES invariant-ekf-ros
-   CATKIN_DEPENDS std_msgs sensor_msgs
+   CATKIN_DEPENDS std_msgs sensor_msgs inekf_msgs
 #  DEPENDS system_lib
 )
 
@@ -161,6 +162,7 @@ file(GLOB src_files
 )
 add_executable(inekf_node src/inekf_node.cpp ${src_files})
 add_executable(fake_imu_publisher_node tests/fake_imu_publisher.cpp)
+add_executable(fake_landmark_publisher_node tests/fake_landmark_publisher.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -180,6 +182,9 @@ target_link_libraries(inekf_node
     ${Boost_LIBRARIES}
 )
 target_link_libraries(fake_imu_publisher_node
+    ${catkin_LIBRARIES}
+)
+target_link_libraries(fake_landmark_publisher_node
     ${catkin_LIBRARIES}
 )
 
