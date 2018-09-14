@@ -11,6 +11,8 @@
 #include "Measurement.h"
 #include "Queue.h"
 
+#define MAX_QUEUE_SIZE 100
+
 class InEKF_ROS {
     public:
         InEKF_ROS(ros::NodeHandle n);

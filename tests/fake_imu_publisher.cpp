@@ -14,7 +14,17 @@ int main(int argc, char **argv) {
     ros::NodeHandle n;
     // Create Fake IMU publisher
     ros::Publisher imu_pub = n.advertise<sensor_msgs::Imu>("/imu", 1000);
-    ros::Rate loop_rate(1);
+
+    // Specify publishing frequency
+    ros::NodeHandle nh("~");
+    float rate;
+    if (nh.hasParam("rate")) {
+        nh.getParam("rate", rate);
+    } else {
+        rate = 1;
+    }
+    cout << "Publishing IMU at " << rate << " Hz." << endl;
+    ros::Rate loop_rate(rate);
 
     uint32_t seq = 0;
     while (ros::ok()) {
