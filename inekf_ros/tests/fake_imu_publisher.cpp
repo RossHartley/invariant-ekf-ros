@@ -1,7 +1,6 @@
 #include "ros/ros.h"
-#include "std_msgs/String.h"
 #include "sensor_msgs/Imu.h"
-#include <sstream>
+#include <random>
 
 using namespace std;
 
@@ -26,6 +25,10 @@ int main(int argc, char **argv) {
     cout << "Publishing IMU at " << rate << " Hz." << endl;
     ros::Rate loop_rate(rate);
 
+    // Initialize random number generator
+    default_random_engine generator;
+    normal_distribution<double> distribution(0,0.1);
+
     uint32_t seq = 0;
     while (ros::ok()) {
         // Construct IMU message
@@ -40,13 +43,13 @@ int main(int argc, char **argv) {
         msg.orientation.y = 0;
         msg.orientation.z = 0;
 
-        msg.angular_velocity.x = 0;
-        msg.angular_velocity.y = 0;
-        msg.angular_velocity.z = 0;
+        msg.angular_velocity.x = 0 + distribution(generator);
+        msg.angular_velocity.y = 0 + distribution(generator);
+        msg.angular_velocity.z = 0 + distribution(generator);
 
-        msg.linear_acceleration.x = 0;
-        msg.linear_acceleration.y = 0;
-        msg.linear_acceleration.z = 9.81;
+        msg.linear_acceleration.x = 0 + distribution(generator);
+        msg.linear_acceleration.y = 0 + distribution(generator);    
+        msg.linear_acceleration.z = 9.81 + distribution(generator);
 
         // Send message
         imu_pub.publish(msg);

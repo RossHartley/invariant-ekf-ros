@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   sensor_msgs
   inekf_msgs
+  tf
 )
 
 ## System dependencies are found with CMake's conventions
@@ -128,7 +129,7 @@ message("EIGEN3_INCLUDE_DIR: " ${EIGEN3_INCLUDE_DIR})
 catkin_package(
    INCLUDE_DIRS include
 #  LIBRARIES invariant-ekf-ros
-   CATKIN_DEPENDS std_msgs sensor_msgs inekf_msgs
+   CATKIN_DEPENDS std_msgs sensor_msgs inekf_msgs tf
 #  DEPENDS system_lib
 )
 

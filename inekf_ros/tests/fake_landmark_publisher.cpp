@@ -1,6 +1,7 @@
 #include "ros/ros.h"
 #include "inekf_msgs/Landmark.h"
 #include "inekf_msgs/LandmarkArray.h"
+#include <random>
 
 using namespace std;
 
@@ -25,6 +26,10 @@ int main(int argc, char **argv) {
     cout << "Publishing landmarks at " << rate << " Hz." << endl;
     ros::Rate loop_rate(rate);
 
+    // Initialize random number generator
+    default_random_engine generator;
+    normal_distribution<double> distribution(0,0.1);
+
     uint32_t seq = 0;
     while (ros::ok()) {
         // Construct landmark message
@@ -35,9 +40,9 @@ int main(int argc, char **argv) {
         msg.header.frame_id = "/imu"; 
 
         msg.id = 0;
-        msg.position.x = 0;
-        msg.position.y = 0;
-        msg.position.z = 0;
+        msg.position.x = 0 + distribution(generator);
+        msg.position.y = 0 + distribution(generator);
+        msg.position.z = 0 + distribution(generator);
 
         // Send message
         imu_pub.publish(msg);
