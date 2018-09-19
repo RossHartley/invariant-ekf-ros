@@ -1,10 +1,14 @@
 settings:
-  map_frame_id : "/map"
-  base_frame_id: "/imu"
   imu_topic: "/imu"
   landmarks_topic: "/landmarks"
+  map_frame_id : "/map"
+  base_frame_id: "/imu"
+  publish_rate: 100.0
   pose_topic: "/pose"
   state_topic: "/state"
-  landmark_visualization_topic: "/landmark_markers"
-  trajectory_visualization_topic: "/trajectory_markers"
-  publish_rate: 20.0
+  # publish_landmark_position_markers: true
+  # landmark_position_markers_topic: "/landmark_position_markers"
+  # publish_trajectory_markers: true
+  # trajectory_markers_topic: "/trajectory_markers"
+  # publish_landmark_measurement_markers: true
+  # landmark_measurement_markers_topic: "/landmark_measurement_markers"

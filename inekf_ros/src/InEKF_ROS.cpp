@@ -114,6 +114,19 @@ void InEKF_ROS::init() {
         }
     }
     filter_.setPriorLandmarks(prior_landmarks);
+
+
+    // ----- Settings --------
+    string landmark_measurement_markers_topic;
+    nh.param<string>("settings/map_frame_id", map_frame_id_, "/map");
+
+    // Create publisher if landmark_measurement_markers are to be published
+    nh.param<bool>("settings/publish_landmark_measurement_markers", publish_landmark_measurement_markers_, false);
+    if (publish_landmark_measurement_markers_) {
+        nh.param<string>("settings/landmark_measurement_markers_topic", landmark_measurement_markers_topic, "/landmark_measurement_markers");
+        landmark_measurement_vis_pub_ = n_.advertise<visualization_msgs::Marker>(landmark_measurement_markers_topic, 1000);
+    }
+
 }
 
 // Process Data
@@ -218,6 +231,9 @@ void InEKF_ROS::mainFilteringThread() {
                 //ROS_INFO("Correcting state with LANDMARK measurements.");
                 auto landmark_ptr = dynamic_pointer_cast<LandmarkMeasurement>(m_ptr);
                 filter_.CorrectLandmarks(landmark_ptr->getData());
+                if (publish_landmark_measurement_markers_) {
+                    this->publishLandmarkMeasurementMarkers(landmark_ptr);
+                }
                 break;
             }
             default:
@@ -226,25 +242,63 @@ void InEKF_ROS::mainFilteringThread() {
     }
 }
 
+// Publish line markers between IMU and detected landmarks
+void InEKF_ROS::publishLandmarkMeasurementMarkers(shared_ptr<LandmarkMeasurement> ptr){
+    // Create and send marker for estimated trajectory visualization
+    visualization_msgs::Marker landmark_measurement_msg;
+    landmark_measurement_msg.header.frame_id = map_frame_id_;
+    landmark_measurement_msg.header.stamp = ros::Time(ptr->getTime());
+    landmark_measurement_msg.header.seq = 0;
+    landmark_measurement_msg.ns = "trajectory";
+    landmark_measurement_msg.type = visualization_msgs::Marker::LINE_LIST;
+    landmark_measurement_msg.action = visualization_msgs::Marker::ADD;
+    landmark_measurement_msg.id = 0;
+    landmark_measurement_msg.scale.x = 0.01;
+    landmark_measurement_msg.scale.y = 0.01;
+    landmark_measurement_msg.scale.z = 0.01;
+    landmark_measurement_msg.color.a = 1.0; // Don't forget to set the alpha!
+    landmark_measurement_msg.color.r = 0.0;
+    landmark_measurement_msg.color.g = 0.0;
+    landmark_measurement_msg.color.b = 1.0;
+    landmark_measurement_msg.lifetime = ros::Duration(100.0);
+
+    geometry_msgs::Point base_point, landmark_point;
+    RobotState state = filter_.getState();
+    Eigen::MatrixXd X = state.getX();
+    Eigen::Vector3d position = state.getPosition();
+    base_point.x = position(0);
+    base_point.y = position(1);
+    base_point.z = position(2);
+    vectorPairIntVector3d measured_landmarks = ptr->getData();
+    map<int,int> estimated_landmarks = filter_.getEstimatedLandmarks();
+    for (auto it=measured_landmarks.begin(); it!=measured_landmarks.end(); ++it) {
+        auto search = estimated_landmarks.find(it->first);
+        if (search == estimated_landmarks.end()) { continue; }
+        landmark_point.x = X(0,search->second);
+        landmark_point.y = X(1,search->second);
+        landmark_point.z = X(2,search->second);
+        landmark_measurement_msg.points.push_back(base_point);
+        landmark_measurement_msg.points.push_back(landmark_point);
+    }
+    landmark_measurement_vis_pub_.publish(landmark_measurement_msg);
+}
+
 // Thread for publishing the output of the filter
 void InEKF_ROS::outputPublishingThread() {
     // Create private node handle to get topic names
     ros::NodeHandle nh("~");
     double publish_rate;
-    string map_frame_id, base_frame_id, pose_topic, state_topic, landmark_visualization_topic, trajectory_visualization_topic;
+    string base_frame_id, pose_topic, state_topic;
+
     nh.param<double>("settings/publish_rate", publish_rate, 10);
-    nh.param<string>("settings/map_frame_id", map_frame_id, "/map");
     nh.param<string>("settings/base_frame_id", base_frame_id, "/imu");
     nh.param<string>("settings/pose_topic", pose_topic, "/pose");
     nh.param<string>("settings/state_topic", state_topic, "/state");
-    nh.param<string>("settings/landmark_visualization_topic", landmark_visualization_topic, "/landmark_markers");
-    nh.param<string>("settings/trajectory_visualization_topic", trajectory_visualization_topic, "/trajectory_markers");
-    ROS_INFO("Map frame id set to %s.", map_frame_id.c_str());
+
+    ROS_INFO("Map frame id set to %s.", map_frame_id_.c_str());
     ROS_INFO("Base frame id set to %s.", base_frame_id.c_str());
     ROS_INFO("Pose topic publishing under %s.", pose_topic.c_str());
     ROS_INFO("State topic publishing under %s.", state_topic.c_str());
-    ROS_INFO("Landmark visualization topic publishing under %s.", landmark_visualization_topic.c_str());
-    ROS_INFO("Trajectory visualization topic publishing under %s.", trajectory_visualization_topic.c_str());
 
     // TODO: Convert output from IMU frame to base frame 
     ROS_INFO("Waiting for tf lookup between frames %s and %s...", imu_frame_id_.c_str(), base_frame_id.c_str());
@@ -259,15 +313,33 @@ void InEKF_ROS::outputPublishingThread() {
         imu_to_base_transform = tf::StampedTransform( tf::Transform::getIdentity(), ros::Time::now(), imu_frame_id_, base_frame_id);
     } 
 
-    // Create publishers
+    // Create publishers for pose and state messages
     ros::Publisher pose_pub = n_.advertise<geometry_msgs::PoseWithCovarianceStamped>(pose_topic, 1000);
     ros::Publisher state_pub = n_.advertise<inekf_msgs::State>(state_topic, 1000);
-    ros::Publisher landmark_vis_pub = n_.advertise<visualization_msgs::MarkerArray>(landmark_visualization_topic, 1000);
-    ros::Publisher traj_vis_pub = n_.advertise<visualization_msgs::Marker>(trajectory_visualization_topic, 1000);
     static tf::TransformBroadcaster tf_broadcaster;
-    uint32_t seq = 0;
 
+    // Create publishers for landmark position and trajectory markers if requested
+    ros::Publisher landmark_vis_pub, traj_vis_pub;
+    nh.param<bool>("settings/publish_landmark_position_markers", publish_landmark_position_markers_, false);
+    if (publish_landmark_position_markers_) {
+        string landmark_position_markers_topic;
+        nh.param<string>("settings/landmark_position_markers_topic", landmark_position_markers_topic, "/landmark_position_markers");
+        landmark_vis_pub = n_.advertise<visualization_msgs::MarkerArray>(landmark_position_markers_topic, 1000);
+        ROS_INFO("Landmark visualization topic publishing under %s.", landmark_position_markers_topic.c_str());
+    }
+    nh.param<bool>("settings/publish_trajectory_markers", publish_trajectory_markers_, false);
+    if (publish_trajectory_markers_) {
+        string trajectory_markers_topic;
+        nh.param<string>("settings/trajectory_markers_topic", trajectory_markers_topic, "/trajectory_markers");
+        traj_vis_pub = n_.advertise<visualization_msgs::Marker>(trajectory_markers_topic, 1000);
+        ROS_INFO("Trajectory visualization topic publishing under %s.", trajectory_markers_topic.c_str());
+    }
+    
+    // Init loop params
+    uint32_t seq = 0;
+    geometry_msgs::Point point_last;
     ros::Rate loop_rate(publish_rate);
+
     // Main loop
     while(true) {
         RobotState state = filter_.getState();
@@ -278,7 +350,7 @@ void InEKF_ROS::outputPublishingThread() {
         geometry_msgs::PoseWithCovarianceStamped pose_msg;
         pose_msg.header.seq = seq;
         pose_msg.header.stamp = ros::Time::now();
-        pose_msg.header.frame_id = map_frame_id; 
+        pose_msg.header.frame_id = map_frame_id_; 
         Eigen::Vector3d position = state.getPosition();
         Eigen::Quaternion<double> orientation(state.getRotation());
         orientation.normalize();
@@ -308,13 +380,13 @@ void InEKF_ROS::outputPublishingThread() {
         pose_pub.publish(pose_msg);
 
         // Create and send tf message
-        tf_broadcaster.sendTransform(tf::StampedTransform(base_pose, ros::Time::now(), map_frame_id, base_frame_id));
+        tf_broadcaster.sendTransform(tf::StampedTransform(base_pose, ros::Time::now(), map_frame_id_, base_frame_id));
 
         // Create and send State message
         inekf_msgs::State state_msg;
         state_msg.header.seq = seq;
         state_msg.header.stamp = ros::Time::now();
-        state_msg.header.frame_id = map_frame_id; 
+        state_msg.header.frame_id = map_frame_id_; 
         state_msg.pose = pose_msg.pose.pose;
         Eigen::Vector3d velocity = state.getVelocity();
         state_msg.velocity.x = velocity(0); 
@@ -340,55 +412,63 @@ void InEKF_ROS::outputPublishingThread() {
         state_pub.publish(state_msg);
 
         // Create and send markers for landmark visualization
-        visualization_msgs::MarkerArray landmark_vis_msg;
-        for (auto it=estimated_landmarks.begin(); it!=estimated_landmarks.end(); ++it) {
-            visualization_msgs::Marker marker;
-            marker.header.frame_id = map_frame_id;
-            marker.header.stamp = ros::Time::now();
-            marker.header.seq = seq;
-            marker.ns = "landmarks";
-            marker.id = it->first;
-            marker.type = visualization_msgs::Marker::SPHERE;
-            marker.action = visualization_msgs::Marker::ADD;
-            marker.pose.position.x = X(0,it->second);
-            marker.pose.position.y = X(1,it->second);
-            marker.pose.position.z = X(2,it->second);
-            marker.pose.orientation.x = 0.0;
-            marker.pose.orientation.y = 0.0;
-            marker.pose.orientation.z = 0.0;
-            marker.pose.orientation.w = 1.0;
-            marker.scale.x = sqrt(P(3+3*(it->second-3),3+3*(it->second-3)));
-            marker.scale.y = sqrt(P(4+3*(it->second-3),4+3*(it->second-3)));
-            marker.scale.z = sqrt(P(5+3*(it->second-3),5+3*(it->second-3)));
-            marker.color.a = 1.0; // Don't forget to set the alpha!
-            marker.color.r = 0.0;
-            marker.color.g = 1.0;
-            marker.color.b = 0.0;
-            landmark_vis_msg.markers.push_back(marker);
+        if (publish_landmark_position_markers_) {
+            visualization_msgs::MarkerArray landmark_vis_msg;
+            for (auto it=estimated_landmarks.begin(); it!=estimated_landmarks.end(); ++it) {
+                visualization_msgs::Marker marker;
+                marker.header.frame_id = map_frame_id_;
+                marker.header.stamp = ros::Time::now();
+                marker.header.seq = seq;
+                marker.ns = "landmarks";
+                marker.id = it->first;
+                marker.type = visualization_msgs::Marker::SPHERE;
+                marker.action = visualization_msgs::Marker::ADD;
+                marker.pose.position.x = X(0,it->second);
+                marker.pose.position.y = X(1,it->second);
+                marker.pose.position.z = X(2,it->second);
+                marker.pose.orientation.x = 0.0;
+                marker.pose.orientation.y = 0.0;
+                marker.pose.orientation.z = 0.0;
+                marker.pose.orientation.w = 1.0;
+                marker.scale.x = sqrt(P(3+3*(it->second-3),3+3*(it->second-3)));
+                marker.scale.y = sqrt(P(4+3*(it->second-3),4+3*(it->second-3)));
+                marker.scale.z = sqrt(P(5+3*(it->second-3),5+3*(it->second-3)));
+                marker.color.a = 1.0; // Don't forget to set the alpha!
+                marker.color.r = 0.0;
+                marker.color.g = 1.0;
+                marker.color.b = 0.0;
+                landmark_vis_msg.markers.push_back(marker);
+            }
+            landmark_vis_pub.publish(landmark_vis_msg);
         }
-        landmark_vis_pub.publish(landmark_vis_msg);
 
         // Create and send marker for estimated trajectory visualization
-        visualization_msgs::Marker traj_vis_msg;
-        traj_vis_msg.header.frame_id = map_frame_id;
-        traj_vis_msg.header.stamp = ros::Time();
-        traj_vis_msg.header.seq = seq;
-        traj_vis_msg.ns = "trajectory";
-        traj_vis_msg.type = visualization_msgs::Marker::SPHERE;
-        traj_vis_msg.action = visualization_msgs::Marker::ADD;
-        traj_vis_msg.id = seq;
-        traj_vis_msg.scale.x = 0.01;
-        traj_vis_msg.scale.y = 0.01;
-        traj_vis_msg.scale.z = 0.01;
-        traj_vis_msg.color.a = 1.0; // Don't forget to set the alpha!
-        traj_vis_msg.color.r = 1.0;
-        traj_vis_msg.color.g = 0.0;
-        traj_vis_msg.color.b = 0.0;
-        traj_vis_msg.lifetime = ros::Duration(100.0);
-        traj_vis_msg.pose.position.x = position(0);
-        traj_vis_msg.pose.position.y = position(1);
-        traj_vis_msg.pose.position.z = position(2);
-        traj_vis_pub.publish(traj_vis_msg);
+        if (publish_trajectory_markers_) {
+            visualization_msgs::Marker traj_vis_msg;
+            traj_vis_msg.header.frame_id = map_frame_id_;
+            traj_vis_msg.header.stamp = ros::Time();
+            traj_vis_msg.header.seq = seq;
+            traj_vis_msg.ns = "trajectory";
+            traj_vis_msg.type = visualization_msgs::Marker::LINE_STRIP;
+            traj_vis_msg.action = visualization_msgs::Marker::ADD;
+            traj_vis_msg.id = seq;
+            traj_vis_msg.scale.x = 0.01;
+            traj_vis_msg.color.a = 1.0; // Don't forget to set the alpha!
+            traj_vis_msg.color.r = 1.0;
+            traj_vis_msg.color.g = 0.0;
+            traj_vis_msg.color.b = 0.0;
+            traj_vis_msg.lifetime = ros::Duration(100.0);
+            geometry_msgs::Point point;
+            point.x = position(0);
+            point.y = position(1);
+            point.z = position(2);
+            if (seq>0){
+                traj_vis_msg.points.push_back(point_last);
+                traj_vis_msg.points.push_back(point);
+                traj_vis_pub.publish(traj_vis_msg);
+            }   
+            point_last = point;
+        }
 
         seq++;
         loop_rate.sleep();
