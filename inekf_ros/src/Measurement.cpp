@@ -1,18 +1,19 @@
 #include "Measurement.h"
 using namespace std;
+using namespace inekf;
 
 // Construct Empty Measurement
 Measurement::Measurement() {
     t_ = 0;
-    data_.resize(1);
-    data_ << 0;
     type_ = EMPTY;
 }
+// Getters
+double Measurement::getTime() { return t_; }
+MeasurementType Measurement::getType() { return type_; }
 
 // Construct IMU measurement
-Measurement::Measurement(const sensor_msgs::Imu::ConstPtr& msg) {
+ImuMeasurement::ImuMeasurement(const sensor_msgs::Imu::ConstPtr& msg) {
     t_ = msg->header.stamp.toSec();
-    data_.resize(6);
     data_ << msg->angular_velocity.x, 
              msg->angular_velocity.y, 
              msg->angular_velocity.z,
@@ -21,11 +22,21 @@ Measurement::Measurement(const sensor_msgs::Imu::ConstPtr& msg) {
              msg->linear_acceleration.z;
     type_ = IMU;
 }
+Eigen::VectorXd ImuMeasurement::getData() { return data_; }
 
-// Getters
-double Measurement::getTime() { return t_; }
-Eigen::VectorXd Measurement::getData() { return data_; }
-MeasurementType Measurement::getType() { return type_; }
+// Construct Landmark measurement
+LandmarkMeasurement::LandmarkMeasurement(const inekf_msgs::LandmarkArray::ConstPtr& msg){
+    t_ = msg->header.stamp.toSec();
+    type_ = LANDMARK;
+    for (int i=0; i<msg->landmarks.size(); ++i) {
+        Eigen::Vector3d position;
+        position << msg->landmarks[i].position.x, 
+                    msg->landmarks[i].position.y, 
+                    msg->landmarks[i].position.z,
+        data_.push_back(pair<int,Eigen::Vector3d> (msg->landmarks[i].id, position)); 
+    }
+}
+vectorPairIntVector3d LandmarkMeasurement::getData() { return data_; }; 
 
 
 // Print measurement

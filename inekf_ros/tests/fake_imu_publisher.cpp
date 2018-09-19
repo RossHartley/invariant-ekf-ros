@@ -16,18 +16,21 @@ int main(int argc, char **argv) {
 
     // Specify publishing frequency
     ros::NodeHandle nh("~");
-    float rate;
-    if (nh.hasParam("rate")) {
-        nh.getParam("rate", rate);
-    } else {
-        rate = 100;
-    }
+    float rate = 100;
+    nh.getParam("rate", rate);
     cout << "Publishing IMU at " << rate << " Hz." << endl;
     ros::Rate loop_rate(rate);
 
     // Initialize random number generator
     default_random_engine generator;
-    normal_distribution<double> distribution(0,0.1);
+    double gyro_std = 0.01;
+    nh.getParam("noise/gyroscope_std", gyro_std);
+    cout << "Gyroscope noise std: " << gyro_std << endl;
+    normal_distribution<double> gyro_noise(0,gyro_std);
+    double accel_std = 0.1;
+    nh.getParam("noise/accelerometer_std", accel_std);
+    cout << "Accelerometer noise std: " << accel_std << endl;
+    normal_distribution<double> accel_noise(0,accel_std);
 
     uint32_t seq = 0;
     while (ros::ok()) {
@@ -43,13 +46,13 @@ int main(int argc, char **argv) {
         msg.orientation.y = 0;
         msg.orientation.z = 0;
 
-        msg.angular_velocity.x = 0 + distribution(generator);
-        msg.angular_velocity.y = 0 + distribution(generator);
-        msg.angular_velocity.z = 0 + distribution(generator);
+        msg.angular_velocity.x = 0 + gyro_noise(generator);
+        msg.angular_velocity.y = 0 + gyro_noise(generator);
+        msg.angular_velocity.z = 0 + gyro_noise(generator);
 
-        msg.linear_acceleration.x = 0 + distribution(generator);
-        msg.linear_acceleration.y = 0 + distribution(generator);    
-        msg.linear_acceleration.z = 9.81 + distribution(generator);
+        msg.linear_acceleration.x = 0 + accel_noise(generator);
+        msg.linear_acceleration.y = 0 + accel_noise(generator);    
+        msg.linear_acceleration.z = 9.81 + accel_noise(generator);
 
         // Send message
         imu_pub.publish(msg);

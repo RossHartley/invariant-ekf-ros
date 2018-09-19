@@ -12,6 +12,7 @@
 #include "InEKF.h"
 #include "Measurement.h"
 #include "Queue.h"
+#include "inekf_msgs/State.h"
 
 #define MAX_QUEUE_SIZE 100
 
@@ -25,16 +26,17 @@ class InEKF_ROS {
         ros::NodeHandle n_;
         inekf::InEKF filter_;
         ros::Subscriber imu_sub_;
+        ros::Subscriber landmarks_sub_;
         std::thread filtering_thread_;
         std::thread output_thread_;
         Queue<std::shared_ptr<Measurement>> m_queue_;
-
         //std::mutex imu_mutex_;
 
         void subscribe();
         void mainFilteringThread();
         void outputPublishingThread();
         void imuCallback(const sensor_msgs::Imu::ConstPtr& msg); 
+        void landmarkCallback(const inekf_msgs::LandmarkArray::ConstPtr& msg);
 };
 
 #endif 

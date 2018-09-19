@@ -10,7 +10,7 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "inekf_node");
     ros::NodeHandle n;    
 
-    // // InEKF filter; 
+    // Test InEKF filter speed
     // int N = 10000;
     // InEKF filter;
     // cout << filter.getNoiseParams() << endl;
@@ -28,7 +28,6 @@ int main(int argc, char **argv) {
     //     sum_duration += duration;
     //     if (duration > max_duration)
     //         max_duration = duration;
-    //     //cout << filter.getState() << endl;
     // }
     // cout << "max duration: " <<  max_duration << endl;
     // cout << "average duration: " <<  double(sum_duration)/double(N) << endl;

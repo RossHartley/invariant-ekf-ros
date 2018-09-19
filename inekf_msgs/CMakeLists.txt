@@ -13,7 +13,9 @@ find_package(
 add_message_files(
     FILES
     Landmark.msg
+    LandmarkStamped.msg
     LandmarkArray.msg
+    State.msg
 )
 
 generate_messages(

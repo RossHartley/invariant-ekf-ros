@@ -1,12 +1,21 @@
 <launch>
   
   <!-- Create fake IMU data publisher-->
-  <node name="fake_imu_publisher" pkg="inekf_ros" type="fake_imu_publisher_node" />
+  <node name="fake_imu_publisher" pkg="inekf_ros" type="fake_imu_publisher_node">
+    <rosparam file="$(find inekf_ros)/config/fake_data_noise.yaml" command="load" />
+    <param name="rate" value="10" />
+  </node>
 
   <!-- Create fake landmark data publisher-->
-  <node name="fake_landmark_publisher" pkg="inekf_ros" type="fake_landmark_publisher_node" />
+  <node name="fake_landmark_publisher" pkg="inekf_ros" type="fake_multi_landmark_publisher_node">
+    <rosparam file="$(find inekf_ros)/config/fake_data_noise.yaml" command="load" />
+    <param name="rate" value="1" />
+  </node>
 
   <!-- Run Invariant EKF -->
-  <node name="invariant_ekf" pkg="inekf_ros" type="inekf_node" output="screen" />
+  <node name="inekf" pkg="inekf_ros" type="inekf_node" output="screen">
+    <rosparam file="$(find inekf_ros)/config/noise.yaml" command="load" />
+    <rosparam file="$(find inekf_ros)/config/prior.yaml" command="load" />
+  </node>
 
 </launch>
