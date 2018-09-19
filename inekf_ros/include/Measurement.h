@@ -7,6 +7,7 @@
 #include "inekf_msgs/LandmarkStamped.h"
 #include "inekf_msgs/LandmarkArray.h"
 #include "InEKF.h"
+#include "tf/transform_listener.h"
 
 enum MeasurementType {EMPTY, IMU, LANDMARK};
 
@@ -45,7 +46,7 @@ class LandmarkMeasurement : public Measurement {
 
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-        LandmarkMeasurement(const inekf_msgs::LandmarkArray::ConstPtr& msg);
+        LandmarkMeasurement(const inekf_msgs::LandmarkArray::ConstPtr& msg, const tf::StampedTransform& transform);
         inekf::vectorPairIntVector3d getData();
         //friend std::ostream& operator<<(std::ostream& os, const Measurement& m);  
 

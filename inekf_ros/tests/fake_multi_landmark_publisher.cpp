@@ -41,18 +41,18 @@ int main(int argc, char **argv) {
         inekf_msgs::Landmark landmark;
         landmark.id = 0;
         landmark.position.x = 1 + landmark_noise(generator);
-        landmark.position.y = 2 + landmark_noise(generator);
-        landmark.position.z = 3 + landmark_noise(generator);
+        landmark.position.y = 1 + landmark_noise(generator);
+        landmark.position.z = 0 + landmark_noise(generator);
         msg.landmarks.push_back(landmark);
         landmark.id = 1;
-        landmark.position.x = 4 + landmark_noise(generator);
-        landmark.position.y = 5 + landmark_noise(generator);
-        landmark.position.z = 6 + landmark_noise(generator);
+        landmark.position.x = 1 + landmark_noise(generator);
+        landmark.position.y = -1 + landmark_noise(generator);
+        landmark.position.z = 0 + landmark_noise(generator);
         msg.landmarks.push_back(landmark);
         landmark.id = 2;
-        landmark.position.x = 7 + landmark_noise(generator);
-        landmark.position.y = 8 + landmark_noise(generator);
-        landmark.position.z = 9 + landmark_noise(generator);
+        landmark.position.x = 2 + landmark_noise(generator);
+        landmark.position.y = 0 + landmark_noise(generator);
+        landmark.position.z = 1 + landmark_noise(generator);
         msg.landmarks.push_back(landmark);
 
         // Send message

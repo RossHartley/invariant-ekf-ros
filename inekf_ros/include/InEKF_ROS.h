@@ -4,15 +4,18 @@
 #include <memory>
 #include <chrono>
 #include <thread>
+#include <string>
 #include <boost/lockfree/queue.hpp>
 #include "ros/ros.h"
 #include "sensor_msgs/Imu.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "tf/transform_broadcaster.h"
+#include "tf/transform_listener.h"
 #include "InEKF.h"
 #include "Measurement.h"
 #include "Queue.h"
 #include "inekf_msgs/State.h"
+#include "visualization_msgs/MarkerArray.h"
 
 #define MAX_QUEUE_SIZE 100
 
@@ -30,7 +33,8 @@ class InEKF_ROS {
         std::thread filtering_thread_;
         std::thread output_thread_;
         Queue<std::shared_ptr<Measurement>> m_queue_;
-        //std::mutex imu_mutex_;
+        tf::StampedTransform camera_to_imu_transform_;
+        std::string imu_frame_id_;
 
         void subscribe();
         void mainFilteringThread();

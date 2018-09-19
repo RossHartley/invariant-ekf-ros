@@ -129,10 +129,39 @@ void InEKF_ROS::run() {
 
 // Subscribe to all publishers
 void InEKF_ROS::subscribe() {
+    // Create private node handle to get topic names
+    ros::NodeHandle nh("~");
+    string imu_topic, landmarks_topic;
+    nh.param<string>("settings/imu_topic", imu_topic, "/imu");
+    nh.param<string>("settings/landmarks_topic", landmarks_topic, "/landmarks");
+
+    ROS_INFO("Waiting for IMU message...");
+    sensor_msgs::Imu::ConstPtr imu_msg = ros::topic::waitForMessage<sensor_msgs::Imu>(imu_topic);
+    imu_frame_id_ = imu_msg->header.frame_id;
+    ROS_INFO("IMU message received. IMU frame is set to %s.", imu_frame_id_.c_str());
+
+    ROS_INFO("Waiting for Landmark message...");
+    inekf_msgs::LandmarkArray::ConstPtr landmark_msg = ros::topic::waitForMessage<inekf_msgs::LandmarkArray>(landmarks_topic);
+    string camera_frame_id = landmark_msg->header.frame_id;
+    ROS_INFO("Landmark message received. Camera frame is set to %s.", camera_frame_id.c_str());
+
+    ROS_INFO("Waiting for tf lookup between frames %s and %s...", camera_frame_id.c_str(), imu_frame_id_.c_str());
+    tf::TransformListener listener;
+    try {
+        listener.waitForTransform(imu_frame_id_, camera_frame_id, ros::Time(0), ros::Duration(10.0) );
+        listener.lookupTransform(imu_frame_id_, camera_frame_id, ros::Time(0), camera_to_imu_transform_);
+        ROS_INFO("Tranform between frames %s and %s was found.", camera_frame_id.c_str(), imu_frame_id_.c_str());
+    } catch (tf::TransformException ex) {
+        ROS_ERROR("%s. Using identity transform.",ex.what());
+        camera_to_imu_transform_ = tf::StampedTransform( tf::Transform::getIdentity(), ros::Time::now(), camera_frame_id, imu_frame_id_);
+    }   
+
     // Subscribe to IMU publisher
-    imu_sub_ = n_.subscribe("/imu", 1000, &InEKF_ROS::imuCallback, this);
+    ROS_INFO("Subscribing to %s.", imu_topic.c_str());
+    imu_sub_ = n_.subscribe(imu_topic, 1000, &InEKF_ROS::imuCallback, this);
     // Subscribe to Landmark publisher
-    landmarks_sub_ = n_.subscribe("/landmarks", 1000, &InEKF_ROS::landmarkCallback, this);
+    ROS_INFO("Subscribing to %s.", landmarks_topic.c_str());
+    landmarks_sub_ = n_.subscribe(landmarks_topic, 1000, &InEKF_ROS::landmarkCallback, this);
 }
 
 // IMU Callback function
@@ -143,7 +172,7 @@ void InEKF_ROS::imuCallback(const sensor_msgs::Imu::ConstPtr& msg) {
 
 // Landmark Callback function
 void InEKF_ROS::landmarkCallback(const inekf_msgs::LandmarkArray::ConstPtr& msg) {
-    shared_ptr<Measurement> ptr(new LandmarkMeasurement(msg));
+    shared_ptr<Measurement> ptr(new LandmarkMeasurement(msg, camera_to_imu_transform_));
     m_queue_.push(ptr);
 }
 
@@ -197,12 +226,39 @@ void InEKF_ROS::mainFilteringThread() {
     }
 }
 
-
 // Thread for publishing the output of the filter
 void InEKF_ROS::outputPublishingThread() {
-    // Create pose publisher
-    ros::Publisher pose_pub = n_.advertise<geometry_msgs::PoseStamped>("/pose", 1000);
-    ros::Publisher state_pub = n_.advertise<inekf_msgs::State>("/state", 1000);
+    // Create private node handle to get topic names
+    ros::NodeHandle nh("~");
+    string map_frame_id, base_frame_id, pose_topic, state_topic, landmark_visualization_topic;
+    nh.param<string>("settings/map_frame_id", map_frame_id, "/map");
+    nh.param<string>("settings/base_frame_id", base_frame_id, "/imu");
+    nh.param<string>("settings/pose_topic", pose_topic, "/pose");
+    nh.param<string>("settings/state_topic", state_topic, "/state");
+    nh.param<string>("settings/landmark_visualization_topic", landmark_visualization_topic, "/landmark_markers");
+    ROS_INFO("Map frame id set to %s.", map_frame_id.c_str());
+    ROS_INFO("Base frame id set to %s.", base_frame_id.c_str());
+    ROS_INFO("Pose topic publishing under %s.", pose_topic.c_str());
+    ROS_INFO("State topic publishing under %s.", state_topic.c_str());
+    ROS_INFO("Landmark visualization topic publishing under %s.", landmark_visualization_topic.c_str());
+
+    // TODO: Convert output from IMU frame to base frame 
+    ROS_INFO("Waiting for tf lookup between frames %s and %s...", imu_frame_id_.c_str(), base_frame_id.c_str());
+    tf::TransformListener listener;
+    tf::StampedTransform imu_to_base_transform;
+    try {
+        listener.waitForTransform(base_frame_id, imu_frame_id_, ros::Time(0), ros::Duration(10.0) );
+        listener.lookupTransform(base_frame_id, imu_frame_id_, ros::Time(0), imu_to_base_transform);
+        ROS_INFO("Tranform between frames %s and %s was found.", imu_frame_id_.c_str(), base_frame_id.c_str());
+    } catch (tf::TransformException ex) {
+        ROS_ERROR("%s. Using identity transform.",ex.what());
+        imu_to_base_transform = tf::StampedTransform( tf::Transform::getIdentity(), ros::Time::now(), imu_frame_id_, base_frame_id);
+    } 
+
+    // Create publishers
+    ros::Publisher pose_pub = n_.advertise<geometry_msgs::PoseStamped>(pose_topic, 1000);
+    ros::Publisher state_pub = n_.advertise<inekf_msgs::State>(state_topic, 1000);
+    ros::Publisher vis_pub = n_.advertise<visualization_msgs::MarkerArray>(landmark_visualization_topic, 1000);
     static tf::TransformBroadcaster tf_broadcaster;
     uint32_t seq = 0;
 
@@ -213,31 +269,36 @@ void InEKF_ROS::outputPublishingThread() {
         geometry_msgs::PoseStamped pose_msg;
         pose_msg.header.seq = seq;
         pose_msg.header.stamp = ros::Time::now();
-        pose_msg.header.frame_id = "/map"; 
+        pose_msg.header.frame_id = map_frame_id; 
         RobotState state = filter_.getState();
         Eigen::Vector3d position = state.getPosition();
         Eigen::Quaternion<double> orientation(state.getRotation());
         orientation.normalize();
-        pose_msg.pose.position.x = position(0); 
-        pose_msg.pose.position.y = position(1); 
-        pose_msg.pose.position.z = position(2); 
-        pose_msg.pose.orientation.w = orientation.w(); 
-        pose_msg.pose.orientation.x = orientation.x(); 
-        pose_msg.pose.orientation.y = orientation.y(); 
-        pose_msg.pose.orientation.z = orientation.z();
+        // Transform from imu frame to base frame
+        tf::Transform imu_pose;
+        imu_pose.setRotation( tf::Quaternion(orientation.x(),orientation.y(),orientation.z(),orientation.w()) );
+        imu_pose.setOrigin( tf::Vector3(position(0),position(1),position(2)) );
+        tf::Transform base_pose = imu_to_base_transform*imu_pose;
+        tf::Quaternion base_orientation = base_pose.getRotation().normalize();
+        tf::Vector3 base_position = base_pose.getOrigin();  
+        // Construct message
+        pose_msg.pose.position.x = base_position.getX(); 
+        pose_msg.pose.position.y = base_position.getY(); 
+        pose_msg.pose.position.z = base_position.getZ(); 
+        pose_msg.pose.orientation.w = base_orientation.getW();
+        pose_msg.pose.orientation.x = base_orientation.getX();
+        pose_msg.pose.orientation.y = base_orientation.getY();
+        pose_msg.pose.orientation.z = base_orientation.getZ();
         pose_pub.publish(pose_msg);
 
         // Create and send tf message
-        tf::Transform transform;
-        transform.setOrigin( tf::Vector3(position(0),position(1),position(2)) );
-        transform.setRotation( tf::Quaternion(orientation.x(),orientation.y(),orientation.z(),orientation.w()) );
-        tf_broadcaster.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "/map", "/imu"));
+        tf_broadcaster.sendTransform(tf::StampedTransform(base_pose, ros::Time::now(), map_frame_id, base_frame_id));
 
         // Create and send State message
         inekf_msgs::State state_msg;
         state_msg.header.seq = seq;
         state_msg.header.stamp = ros::Time::now();
-        state_msg.header.frame_id = "/map"; 
+        state_msg.header.frame_id = map_frame_id; 
         state_msg.pose = pose_msg.pose;
         Eigen::Vector3d velocity = state.getVelocity();
         state_msg.velocity.x = velocity(0); 
@@ -260,6 +321,36 @@ void InEKF_ROS::outputPublishingThread() {
         state_msg.accelerometer_bias.y = ba(1); 
         state_msg.accelerometer_bias.z = ba(2); 
         state_pub.publish(state_msg);
+
+        // Create and send markers for landmark visualization
+        visualization_msgs::MarkerArray landmark_vis_msg;
+        for (int i=5; i<X.cols(); ++i) {
+            visualization_msgs::Marker marker;
+            marker.header.frame_id = map_frame_id;
+            marker.header.stamp = ros::Time::now();
+            marker.header.seq = seq;
+            marker.ns = "landmarks";
+            marker.id = i;
+            marker.type = visualization_msgs::Marker::SPHERE;
+            marker.action = visualization_msgs::Marker::ADD;
+            marker.pose.position.x = X(0,i);
+            marker.pose.position.y = X(1,i);
+            marker.pose.position.z = X(2,i);
+            marker.pose.orientation.x = 0.0;
+            marker.pose.orientation.y = 0.0;
+            marker.pose.orientation.z = 0.0;
+            marker.pose.orientation.w = 1.0;
+            marker.scale.x = 0.1;
+            marker.scale.y = 0.1;
+            marker.scale.z = 0.1;
+            marker.color.a = 1.0; // Don't forget to set the alpha!
+            marker.color.r = 0.0;
+            marker.color.g = 1.0;
+            marker.color.b = 0.0;
+            landmark_vis_msg.markers.push_back(marker);
+        }
+        vis_pub.publish(landmark_vis_msg);
+
 
         seq++;
         loop_rate.sleep();

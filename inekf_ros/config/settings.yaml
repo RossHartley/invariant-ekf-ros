@@ -1,0 +1,8 @@
+settings:
+  map_frame_id : "/map"
+  base_frame_id: "/imu"
+  imu_topic: "/imu"
+  landmarks_topic: "/landmarks"
+  pose_topic: "/pose"
+  state_topic: "/state"
+  landmark_visualization_topic: "/landmark_markers"

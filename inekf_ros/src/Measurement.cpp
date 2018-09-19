@@ -25,14 +25,14 @@ ImuMeasurement::ImuMeasurement(const sensor_msgs::Imu::ConstPtr& msg) {
 Eigen::VectorXd ImuMeasurement::getData() { return data_; }
 
 // Construct Landmark measurement
-LandmarkMeasurement::LandmarkMeasurement(const inekf_msgs::LandmarkArray::ConstPtr& msg){
+LandmarkMeasurement::LandmarkMeasurement(const inekf_msgs::LandmarkArray::ConstPtr& msg, const tf::StampedTransform& transform){
     t_ = msg->header.stamp.toSec();
     type_ = LANDMARK;
     for (int i=0; i<msg->landmarks.size(); ++i) {
+        tf::Vector3 p_cl(msg->landmarks[i].position.x, msg->landmarks[i].position.y, msg->landmarks[i].position.z);
+        tf::Vector3 p_bl = transform*p_cl; // Transform measurement from camera frame to imu frame
         Eigen::Vector3d position;
-        position << msg->landmarks[i].position.x, 
-                    msg->landmarks[i].position.y, 
-                    msg->landmarks[i].position.z,
+        position << p_bl.getX(), p_bl.getY(), p_bl.getZ();
         data_.push_back(pair<int,Eigen::Vector3d> (msg->landmarks[i].id, position)); 
     }
 }
