@@ -10,6 +10,15 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "inekf_node");
     ros::NodeHandle n;    
 
+    // Initialize InEKF ROS wrapper
+    InEKF_ROS inekf_wrapper(n);
+    inekf_wrapper.init();
+    inekf_wrapper.run();
+
+    return 0;
+}
+
+
     // Test InEKF filter speed
     // int N = 10000;
     // InEKF filter;
@@ -31,11 +40,3 @@ int main(int argc, char **argv) {
     // }
     // cout << "max duration: " <<  max_duration << endl;
     // cout << "average duration: " <<  double(sum_duration)/double(N) << endl;
-
-    // Initialize InEKF ROS wrapper
-    InEKF_ROS inekf_wrapper(n);
-    inekf_wrapper.init();
-    inekf_wrapper.run();
-
-    return 0;
-}

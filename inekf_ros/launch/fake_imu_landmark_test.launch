@@ -3,13 +3,13 @@
   <!-- Create fake IMU data publisher-->
   <node name="fake_imu_publisher" pkg="inekf_ros" type="fake_imu_publisher_node">
     <rosparam file="$(find inekf_ros)/config/fake_data_noise.yaml" command="load" />
-    <param name="rate" value="10" />
+    <param name="rate" value="200" />
   </node>
 
   <!-- Create fake landmark data publisher-->
   <node name="fake_landmark_publisher" pkg="inekf_ros" type="fake_multi_landmark_publisher_node">
     <rosparam file="$(find inekf_ros)/config/fake_data_noise.yaml" command="load" />
-    <param name="rate" value="1" />
+    <param name="rate" value="10" />
   </node>
 
   <!-- Run Invariant EKF -->

@@ -3,4 +3,4 @@ noise:
   accelerometer_std: 0.05
   gyroscope_bias_std: 0.00005
   accelerometer_bias_std: 0.0005
-  landmark_std: 0.0
+  landmark_std: 0.05
