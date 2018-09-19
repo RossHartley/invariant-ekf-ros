@@ -269,17 +269,33 @@ void InEKF_ROS::publishLandmarkMeasurementMarkers(shared_ptr<LandmarkMeasurement
     base_point.x = position(0);
     base_point.y = position(1);
     base_point.z = position(2);
+
     vectorPairIntVector3d measured_landmarks = ptr->getData();
+    mapIntVector3d prior_landmarks = filter_.getPriorLandmarks();
     map<int,int> estimated_landmarks = filter_.getEstimatedLandmarks();
     for (auto it=measured_landmarks.begin(); it!=measured_landmarks.end(); ++it) {
-        auto search = estimated_landmarks.find(it->first);
-        if (search == estimated_landmarks.end()) { continue; }
-        landmark_point.x = X(0,search->second);
-        landmark_point.y = X(1,search->second);
-        landmark_point.z = X(2,search->second);
-        landmark_measurement_msg.points.push_back(base_point);
-        landmark_measurement_msg.points.push_back(landmark_point);
+        // Search through prior landmarks
+        auto search_prior = prior_landmarks.find(it->first);
+        if (search_prior != prior_landmarks.end()) {
+            landmark_point.x = search_prior->second(0);
+            landmark_point.y = search_prior->second(1);
+            landmark_point.z = search_prior->second(2);
+            landmark_measurement_msg.points.push_back(base_point);
+            landmark_measurement_msg.points.push_back(landmark_point);
+            continue;
+        }
+        // Search through estimated landmarks
+        auto search_estimated = estimated_landmarks.find(it->first);
+        if (search_estimated != estimated_landmarks.end()) {
+            landmark_point.x = X(0,search_estimated->second);
+            landmark_point.y = X(1,search_estimated->second);
+            landmark_point.z = X(2,search_estimated->second);
+            landmark_measurement_msg.points.push_back(base_point);
+            landmark_measurement_msg.points.push_back(landmark_point);
+            continue;
+        }
     }
+    // Publish
     landmark_measurement_vis_pub_.publish(landmark_measurement_msg);
 }
 
@@ -412,8 +428,36 @@ void InEKF_ROS::outputPublishingThread() {
         state_pub.publish(state_msg);
 
         // Create and send markers for landmark visualization
+        mapIntVector3d prior_landmarks = filter_.getPriorLandmarks();
         if (publish_landmark_position_markers_) {
             visualization_msgs::MarkerArray landmark_vis_msg;
+            // Add prior landmarks
+            for (auto it=prior_landmarks.begin(); it!=prior_landmarks.end(); ++it) {
+                visualization_msgs::Marker marker;
+                marker.header.frame_id = map_frame_id_;
+                marker.header.stamp = ros::Time::now();
+                marker.header.seq = seq;
+                marker.ns = "landmarks";
+                marker.id = it->first;
+                marker.type = visualization_msgs::Marker::SPHERE;
+                marker.action = visualization_msgs::Marker::ADD;
+                marker.pose.position.x = it->second(0);
+                marker.pose.position.y = it->second(1);
+                marker.pose.position.z = it->second(2);
+                marker.pose.orientation.x = 0.0;
+                marker.pose.orientation.y = 0.0;
+                marker.pose.orientation.z = 0.0;
+                marker.pose.orientation.w = 1.0;
+                marker.scale.x = 0.1;
+                marker.scale.y = 0.1;
+                marker.scale.z = 0.1;
+                marker.color.a = 1.0; // Don't forget to set the alpha!
+                marker.color.r = 0.0;
+                marker.color.g = 1.0;
+                marker.color.b = 1.0;
+                landmark_vis_msg.markers.push_back(marker);
+            }
+            // Add estimated landmarks
             for (auto it=estimated_landmarks.begin(); it!=estimated_landmarks.end(); ++it) {
                 visualization_msgs::Marker marker;
                 marker.header.frame_id = map_frame_id_;

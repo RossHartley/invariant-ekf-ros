@@ -9,10 +9,10 @@ prior:
   base_position_std: 0.01
   gyroscope_bias_std: 0.001
   accelerometer_bias_std: 0.01
-  # landmarks: 
-  #   - id: 0
-  #     position: [1.0,1.0,0.0] 
-  #   - id: 1
-  #     position: [1.0,-1.0,0.0]
-  #   - id: 2
-  #     position: [2.0,0.0,1.0]
+  landmarks: 
+    - id: 0
+      position: [1.0,1.0,0.0] 
+    - id: 1
+      position: [1.0,-1.0,0.0]
+    - id: 2
+      position: [2.0,0.0,1.0]

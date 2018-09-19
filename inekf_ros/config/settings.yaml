@@ -6,9 +6,9 @@ settings:
   publish_rate: 100.0
   pose_topic: "/pose"
   state_topic: "/state"
-  # publish_landmark_position_markers: true
-  # landmark_position_markers_topic: "/landmark_position_markers"
-  # publish_trajectory_markers: true
-  # trajectory_markers_topic: "/trajectory_markers"
-  # publish_landmark_measurement_markers: true
-  # landmark_measurement_markers_topic: "/landmark_measurement_markers"
+  publish_landmark_position_markers: true
+  landmark_position_markers_topic: "/landmark_position_markers"
+  publish_trajectory_markers: true
+  trajectory_markers_topic: "/trajectory_markers"
+  publish_landmark_measurement_markers: true
+  landmark_measurement_markers_topic: "/landmark_measurement_markers"
