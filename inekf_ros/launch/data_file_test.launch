@@ -1,0 +1,15 @@
+<launch>
+
+  <!-- Run Invariant EKF -->
+  <node name="inekf" pkg="inekf_ros" type="inekf_node" output="screen">
+    <rosparam file="$(find inekf_ros)/config/settings.yaml" command="load" />
+    <rosparam file="$(find inekf_ros)/config/noise.yaml" command="load" />
+    <rosparam file="$(find inekf_ros)/config/prior.yaml" command="load" />
+  </node>
+
+    <!-- Create data publisher-->
+  <node name="data_file_publisher" pkg="inekf_ros" type="data_file_publisher_node">
+    <param name="data_file" type="string" value="$(find inekf_ros)/data/sim_data_2.txt" />
+  </node>
+
+</launch>

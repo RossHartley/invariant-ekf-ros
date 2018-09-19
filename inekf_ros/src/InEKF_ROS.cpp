@@ -230,17 +230,21 @@ void InEKF_ROS::mainFilteringThread() {
 void InEKF_ROS::outputPublishingThread() {
     // Create private node handle to get topic names
     ros::NodeHandle nh("~");
-    string map_frame_id, base_frame_id, pose_topic, state_topic, landmark_visualization_topic;
+    double publish_rate;
+    string map_frame_id, base_frame_id, pose_topic, state_topic, landmark_visualization_topic, trajectory_visualization_topic;
+    nh.param<double>("settings/publish_rate", publish_rate, 10);
     nh.param<string>("settings/map_frame_id", map_frame_id, "/map");
     nh.param<string>("settings/base_frame_id", base_frame_id, "/imu");
     nh.param<string>("settings/pose_topic", pose_topic, "/pose");
     nh.param<string>("settings/state_topic", state_topic, "/state");
     nh.param<string>("settings/landmark_visualization_topic", landmark_visualization_topic, "/landmark_markers");
+    nh.param<string>("settings/trajectory_visualization_topic", trajectory_visualization_topic, "/trajectory_markers");
     ROS_INFO("Map frame id set to %s.", map_frame_id.c_str());
     ROS_INFO("Base frame id set to %s.", base_frame_id.c_str());
     ROS_INFO("Pose topic publishing under %s.", pose_topic.c_str());
     ROS_INFO("State topic publishing under %s.", state_topic.c_str());
     ROS_INFO("Landmark visualization topic publishing under %s.", landmark_visualization_topic.c_str());
+    ROS_INFO("Trajectory visualization topic publishing under %s.", trajectory_visualization_topic.c_str());
 
     // TODO: Convert output from IMU frame to base frame 
     ROS_INFO("Waiting for tf lookup between frames %s and %s...", imu_frame_id_.c_str(), base_frame_id.c_str());
@@ -256,21 +260,25 @@ void InEKF_ROS::outputPublishingThread() {
     } 
 
     // Create publishers
-    ros::Publisher pose_pub = n_.advertise<geometry_msgs::PoseStamped>(pose_topic, 1000);
+    ros::Publisher pose_pub = n_.advertise<geometry_msgs::PoseWithCovarianceStamped>(pose_topic, 1000);
     ros::Publisher state_pub = n_.advertise<inekf_msgs::State>(state_topic, 1000);
-    ros::Publisher vis_pub = n_.advertise<visualization_msgs::MarkerArray>(landmark_visualization_topic, 1000);
+    ros::Publisher landmark_vis_pub = n_.advertise<visualization_msgs::MarkerArray>(landmark_visualization_topic, 1000);
+    ros::Publisher traj_vis_pub = n_.advertise<visualization_msgs::Marker>(trajectory_visualization_topic, 1000);
     static tf::TransformBroadcaster tf_broadcaster;
     uint32_t seq = 0;
 
-    ros::Rate loop_rate(100);
+    ros::Rate loop_rate(publish_rate);
     // Main loop
     while(true) {
+        RobotState state = filter_.getState();
+        Eigen::MatrixXd X = state.getX();
+        Eigen::MatrixXd P = state.getP();
+
         // Create and send pose message
-        geometry_msgs::PoseStamped pose_msg;
+        geometry_msgs::PoseWithCovarianceStamped pose_msg;
         pose_msg.header.seq = seq;
         pose_msg.header.stamp = ros::Time::now();
         pose_msg.header.frame_id = map_frame_id; 
-        RobotState state = filter_.getState();
         Eigen::Vector3d position = state.getPosition();
         Eigen::Quaternion<double> orientation(state.getRotation());
         orientation.normalize();
@@ -282,13 +290,21 @@ void InEKF_ROS::outputPublishingThread() {
         tf::Quaternion base_orientation = base_pose.getRotation().normalize();
         tf::Vector3 base_position = base_pose.getOrigin();  
         // Construct message
-        pose_msg.pose.position.x = base_position.getX(); 
-        pose_msg.pose.position.y = base_position.getY(); 
-        pose_msg.pose.position.z = base_position.getZ(); 
-        pose_msg.pose.orientation.w = base_orientation.getW();
-        pose_msg.pose.orientation.x = base_orientation.getX();
-        pose_msg.pose.orientation.y = base_orientation.getY();
-        pose_msg.pose.orientation.z = base_orientation.getZ();
+        pose_msg.pose.pose.position.x = base_position.getX(); 
+        pose_msg.pose.pose.position.y = base_position.getY(); 
+        pose_msg.pose.pose.position.z = base_position.getZ(); 
+        pose_msg.pose.pose.orientation.w = base_orientation.getW();
+        pose_msg.pose.pose.orientation.x = base_orientation.getX();
+        pose_msg.pose.pose.orientation.y = base_orientation.getY();
+        pose_msg.pose.pose.orientation.z = base_orientation.getZ();
+        Eigen::Matrix<double,6,6> P_pose; // TODO: convert covariance from imu to body frame (adjoint?)
+        P_pose.block<3,3>(0,0) = P.block<3,3>(0,0);
+        P_pose.block<3,3>(0,3) = P.block<3,3>(0,6);
+        P_pose.block<3,3>(3,0) = P.block<3,3>(6,0);
+        P_pose.block<3,3>(3,3) = P.block<3,3>(6,6);
+        for (int i=0; i<36; ++i) {
+            pose_msg.pose.covariance[i] = P_pose(i);
+        }
         pose_pub.publish(pose_msg);
 
         // Create and send tf message
@@ -299,17 +315,18 @@ void InEKF_ROS::outputPublishingThread() {
         state_msg.header.seq = seq;
         state_msg.header.stamp = ros::Time::now();
         state_msg.header.frame_id = map_frame_id; 
-        state_msg.pose = pose_msg.pose;
+        state_msg.pose = pose_msg.pose.pose;
         Eigen::Vector3d velocity = state.getVelocity();
         state_msg.velocity.x = velocity(0); 
         state_msg.velocity.y = velocity(1); 
         state_msg.velocity.z = velocity(2); 
-        Eigen::MatrixXd X = state.getX();
-        for (int i=5; i<X.cols(); ++i) {
-            geometry_msgs::Point landmark;
-            landmark.x = X(0,i);
-            landmark.y = X(1,i);
-            landmark.z = X(2,i);
+        map<int,int> estimated_landmarks = filter_.getEstimatedLandmarks();
+        for (auto it=estimated_landmarks.begin(); it!=estimated_landmarks.end(); ++it) {
+            inekf_msgs::Landmark landmark;
+            landmark.id = it->first;
+            landmark.position.x = X(0,it->second);
+            landmark.position.y = X(1,it->second);
+            landmark.position.z = X(2,it->second);
             state_msg.landmarks.push_back(landmark);
         }
         Eigen::Vector3d bg = state.getAngularVelocityBias();
@@ -324,33 +341,54 @@ void InEKF_ROS::outputPublishingThread() {
 
         // Create and send markers for landmark visualization
         visualization_msgs::MarkerArray landmark_vis_msg;
-        for (int i=5; i<X.cols(); ++i) {
+        for (auto it=estimated_landmarks.begin(); it!=estimated_landmarks.end(); ++it) {
             visualization_msgs::Marker marker;
             marker.header.frame_id = map_frame_id;
             marker.header.stamp = ros::Time::now();
             marker.header.seq = seq;
             marker.ns = "landmarks";
-            marker.id = i;
+            marker.id = it->first;
             marker.type = visualization_msgs::Marker::SPHERE;
             marker.action = visualization_msgs::Marker::ADD;
-            marker.pose.position.x = X(0,i);
-            marker.pose.position.y = X(1,i);
-            marker.pose.position.z = X(2,i);
+            marker.pose.position.x = X(0,it->second);
+            marker.pose.position.y = X(1,it->second);
+            marker.pose.position.z = X(2,it->second);
             marker.pose.orientation.x = 0.0;
             marker.pose.orientation.y = 0.0;
             marker.pose.orientation.z = 0.0;
             marker.pose.orientation.w = 1.0;
-            marker.scale.x = 0.1;
-            marker.scale.y = 0.1;
-            marker.scale.z = 0.1;
+            marker.scale.x = sqrt(P(3+3*(it->second-3),3+3*(it->second-3)));
+            marker.scale.y = sqrt(P(4+3*(it->second-3),4+3*(it->second-3)));
+            marker.scale.z = sqrt(P(5+3*(it->second-3),5+3*(it->second-3)));
             marker.color.a = 1.0; // Don't forget to set the alpha!
             marker.color.r = 0.0;
             marker.color.g = 1.0;
             marker.color.b = 0.0;
             landmark_vis_msg.markers.push_back(marker);
         }
-        vis_pub.publish(landmark_vis_msg);
+        landmark_vis_pub.publish(landmark_vis_msg);
 
+        // Create and send marker for estimated trajectory visualization
+        visualization_msgs::Marker traj_vis_msg;
+        traj_vis_msg.header.frame_id = map_frame_id;
+        traj_vis_msg.header.stamp = ros::Time();
+        traj_vis_msg.header.seq = seq;
+        traj_vis_msg.ns = "trajectory";
+        traj_vis_msg.type = visualization_msgs::Marker::SPHERE;
+        traj_vis_msg.action = visualization_msgs::Marker::ADD;
+        traj_vis_msg.id = seq;
+        traj_vis_msg.scale.x = 0.01;
+        traj_vis_msg.scale.y = 0.01;
+        traj_vis_msg.scale.z = 0.01;
+        traj_vis_msg.color.a = 1.0; // Don't forget to set the alpha!
+        traj_vis_msg.color.r = 1.0;
+        traj_vis_msg.color.g = 0.0;
+        traj_vis_msg.color.b = 0.0;
+        traj_vis_msg.lifetime = ros::Duration(100.0);
+        traj_vis_msg.pose.position.x = position(0);
+        traj_vis_msg.pose.position.y = position(1);
+        traj_vis_msg.pose.position.z = position(2);
+        traj_vis_pub.publish(traj_vis_msg);
 
         seq++;
         loop_rate.sleep();

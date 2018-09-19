@@ -6,3 +6,5 @@ settings:
   pose_topic: "/pose"
   state_topic: "/state"
   landmark_visualization_topic: "/landmark_markers"
+  trajectory_visualization_topic: "/trajectory_markers"
+  publish_rate: 20.0
