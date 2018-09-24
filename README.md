@@ -6,6 +6,11 @@ This filter can be used to estimate a robot's 3D pose and velocity using an IMU 
 * Kinematic and contact measurements
 
 
+## Installation
+TODO
+
+## Parameters
+TODO
 
 ## Examples
 TODO
