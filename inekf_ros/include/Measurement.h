@@ -4,12 +4,13 @@
 #include <string>
 #include "ros/ros.h"
 #include "sensor_msgs/Imu.h"
-#include "inekf_msgs/LandmarkStamped.h"
+#include "inekf_msgs/ContactArray.h"
+#include "inekf_msgs/KinematicsArray.h"
 #include "inekf_msgs/LandmarkArray.h"
 #include "InEKF.h"
 #include "tf/transform_listener.h"
 
-enum MeasurementType {EMPTY, IMU, LANDMARK};
+enum MeasurementType {EMPTY, IMU, LANDMARK, KINEMATIC, CONTACT};
 
 class Measurement {
 
@@ -53,5 +54,31 @@ class LandmarkMeasurement : public Measurement {
     private:
         inekf::vectorPairIntVector3d data_;
 };
+
+class ContactMeasurement : public Measurement {
+
+    public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+        ContactMeasurement(const inekf_msgs::ContactArray::ConstPtr& msg);
+        std::vector<std::pair<int,bool>> getData();
+        //friend std::ostream& operator<<(std::ostream& os, const Measurement& m);  
+
+    private:
+        std::vector<std::pair<int,bool>> data_;
+};
+
+
+class KinematicMeasurement : public Measurement {
+
+    public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+        KinematicMeasurement(const inekf_msgs::KinematicsArray::ConstPtr& msg);
+        inekf::vectorTupleIntMatrix4dMatrix6d getData();
+        //friend std::ostream& operator<<(std::ostream& os, const Measurement& m);  
+
+    private:
+        inekf::vectorTupleIntMatrix4dMatrix6d data_;
+};
+
 
 #endif 

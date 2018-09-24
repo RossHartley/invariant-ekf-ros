@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   sensor_msgs
   inekf_msgs
+  apriltag_msgs
   tf
 )
 
@@ -163,7 +164,8 @@ file(GLOB src_files
 )
 add_executable(inekf_node src/inekf_node.cpp ${src_files})
 add_executable(fake_imu_publisher_node tests/fake_imu_publisher.cpp)
-add_executable(fake_multi_landmark_publisher_node tests/fake_multi_landmark_publisher.cpp)
+add_executable(fake_landmark_publisher_node tests/fake_landmark_publisher.cpp)
+add_executable(fake_contact_kinematics_publisher_node tests/fake_contact_kinematics_publisher.cpp)
 add_executable(data_file_publisher_node tests/data_file_publisher.cpp)
 
 ## Rename C++ executable without prefix
@@ -186,7 +188,10 @@ target_link_libraries(inekf_node
 target_link_libraries(fake_imu_publisher_node
     ${catkin_LIBRARIES}
 )
-target_link_libraries(fake_multi_landmark_publisher_node
+target_link_libraries(fake_landmark_publisher_node
+    ${catkin_LIBRARIES}
+)
+target_link_libraries(fake_contact_kinematics_publisher_node
     ${catkin_LIBRARIES}
 )
 target_link_libraries(data_file_publisher_node

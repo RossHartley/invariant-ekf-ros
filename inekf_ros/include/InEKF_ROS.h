@@ -16,6 +16,8 @@
 #include "Queue.h"
 #include "inekf_msgs/State.h"
 #include "visualization_msgs/MarkerArray.h"
+#include "apriltag_msgs/AprilTagDetectionArray.h"
+#include <mutex>
 
 #define MAX_QUEUE_SIZE 100
 
@@ -30,25 +32,31 @@ class InEKF_ROS {
         inekf::InEKF filter_;
         ros::Subscriber imu_sub_;
         ros::Subscriber landmarks_sub_;
+        ros::Subscriber kinematics_sub_;
+        ros::Subscriber contact_sub_;
         std::thread filtering_thread_;
         std::thread output_thread_;
         Queue<std::shared_ptr<Measurement>> m_queue_;
 
         std::string imu_frame_id_;
         std::string map_frame_id_;
+        bool publish_visualization_markers_;
+        ros::Publisher visualization_pub_;
+        bool enable_landmarks_;
         tf::StampedTransform camera_to_imu_transform_;
-        bool publish_landmark_measurement_markers_;
-        bool publish_landmark_position_markers_;
-        bool publish_trajectory_markers_;
-        ros::Publisher landmark_measurement_vis_pub_;
-
+        bool enable_kinematics_;
 
         void subscribe();
         void mainFilteringThread();
         void outputPublishingThread();
         void imuCallback(const sensor_msgs::Imu::ConstPtr& msg); 
         void landmarkCallback(const inekf_msgs::LandmarkArray::ConstPtr& msg);
+        void aprilTagCallback(const apriltag_msgs::AprilTagDetectionArray::ConstPtr& msg);
+        void kinematicsCallback(const inekf_msgs::KinematicsArray::ConstPtr& msg);
+        void contactCallback(const inekf_msgs::ContactArray::ConstPtr& msg);
+
         void publishLandmarkMeasurementMarkers(std::shared_ptr<LandmarkMeasurement> ptr);
+        void publishKinematicMeasurementMarkers(std::shared_ptr<KinematicMeasurement> ptr);
 };
 
 #endif 

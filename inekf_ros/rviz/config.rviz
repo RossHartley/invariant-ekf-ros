@@ -6,6 +6,8 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /MarkerArray1
+        - /MarkerArray1/Namespaces1
       Splitter Ratio: 0.5
     Tree Height: 542
   - Class: rviz/Selection
@@ -68,28 +70,16 @@ Visualization Manager:
             {}
       Update Interval: 0
       Value: true
-    - Class: rviz/Marker
-      Enabled: true
-      Marker Topic: /trajectory_markers
-      Name: Marker
-      Namespaces:
-        trajectory: true
-      Queue Size: 100
-      Value: true
-    - Class: rviz/Marker
-      Enabled: true
-      Marker Topic: /landmark_measurement_markers
-      Name: Marker
-      Namespaces:
-        trajectory: true
-      Queue Size: 100
-      Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /landmark_position_markers
+      Marker Topic: /markers
       Name: MarkerArray
       Namespaces:
+        contacts: true
+        estimated_contacts: true
+        estimated_landmarks: true
         landmarks: true
+        trajectory: true
       Queue Size: 100
       Value: true
   Enabled: true
@@ -132,10 +122,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.355397969
+      Pitch: 0.520397902
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.47540188
+      Yaw: 3.35040116
     Saved: ~
 Window Geometry:
   Displays:
@@ -153,5 +143,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1536
-  X: 101
-  Y: 52
+  X: 125
+  Y: 145

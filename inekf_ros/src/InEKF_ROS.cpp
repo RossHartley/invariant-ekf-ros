@@ -117,14 +117,15 @@ void InEKF_ROS::init() {
 
 
     // ----- Settings --------
-    string landmark_measurement_markers_topic;
     nh.param<string>("settings/map_frame_id", map_frame_id_, "/map");
 
-    // Create publisher if landmark_measurement_markers are to be published
-    nh.param<bool>("settings/publish_landmark_measurement_markers", publish_landmark_measurement_markers_, false);
-    if (publish_landmark_measurement_markers_) {
-        nh.param<string>("settings/landmark_measurement_markers_topic", landmark_measurement_markers_topic, "/landmark_measurement_markers");
-        landmark_measurement_vis_pub_ = n_.advertise<visualization_msgs::Marker>(landmark_measurement_markers_topic, 1000);
+    // Create publishers visualization markers if requested
+    nh.param<bool>("settings/publish_visualization_markers", publish_visualization_markers_, false);
+    if (publish_visualization_markers_) {
+        string visualization_markers_topic;
+        nh.param<string>("settings/visualization_markers_topic", visualization_markers_topic, "/markers");
+        visualization_pub_ = n_.advertise<visualization_msgs::MarkerArray>(visualization_markers_topic, 1000);
+        ROS_INFO("Visualization topic publishing under %s.", visualization_markers_topic.c_str());
     }
 
 }
@@ -144,37 +145,65 @@ void InEKF_ROS::run() {
 void InEKF_ROS::subscribe() {
     // Create private node handle to get topic names
     ros::NodeHandle nh("~");
-    string imu_topic, landmarks_topic;
+    string imu_topic;
     nh.param<string>("settings/imu_topic", imu_topic, "/imu");
-    nh.param<string>("settings/landmarks_topic", landmarks_topic, "/landmarks");
 
+    // Retrieve imu frame_id 
     ROS_INFO("Waiting for IMU message...");
     sensor_msgs::Imu::ConstPtr imu_msg = ros::topic::waitForMessage<sensor_msgs::Imu>(imu_topic);
     imu_frame_id_ = imu_msg->header.frame_id;
     ROS_INFO("IMU message received. IMU frame is set to %s.", imu_frame_id_.c_str());
 
-    ROS_INFO("Waiting for Landmark message...");
-    inekf_msgs::LandmarkArray::ConstPtr landmark_msg = ros::topic::waitForMessage<inekf_msgs::LandmarkArray>(landmarks_topic);
-    string camera_frame_id = landmark_msg->header.frame_id;
-    ROS_INFO("Landmark message received. Camera frame is set to %s.", camera_frame_id.c_str());
+    // Retrieve camera frame_id and transformation between camera and imu
+    string landmarks_topic;
+    if (enable_landmarks_) {
+        nh.param<string>("settings/landmarks_topic", landmarks_topic, "/landmarks");
+        ROS_INFO("Waiting for Landmark message...");
+        inekf_msgs::LandmarkArray::ConstPtr landmark_msg = ros::topic::waitForMessage<inekf_msgs::LandmarkArray>(landmarks_topic);
+        string camera_frame_id = landmark_msg->header.frame_id;
+        // apriltag_msgs::AprilTagDetectionArray::ConstPtr landmark_msg = ros::topic::waitForMessage<apriltag_msgs::AprilTagDetectionArray>(landmarks_topic);
+        // while(landmark_msg->detections.size()==0) {
+        //     landmark_msg = ros::topic::waitForMessage<apriltag_msgs::AprilTagDetectionArray>(landmarks_topic);
+        //     if (landmark_msg->detections.size() != 0) 
+        //         break;
+        // }
+        // string camera_frame_id = landmark_msg->detections[0].pose.header.frame_id;
+        ROS_INFO("Landmark message received. Camera frame is set to %s.", camera_frame_id.c_str());
 
-    ROS_INFO("Waiting for tf lookup between frames %s and %s...", camera_frame_id.c_str(), imu_frame_id_.c_str());
-    tf::TransformListener listener;
-    try {
-        listener.waitForTransform(imu_frame_id_, camera_frame_id, ros::Time(0), ros::Duration(10.0) );
-        listener.lookupTransform(imu_frame_id_, camera_frame_id, ros::Time(0), camera_to_imu_transform_);
-        ROS_INFO("Tranform between frames %s and %s was found.", camera_frame_id.c_str(), imu_frame_id_.c_str());
-    } catch (tf::TransformException ex) {
-        ROS_ERROR("%s. Using identity transform.",ex.what());
-        camera_to_imu_transform_ = tf::StampedTransform( tf::Transform::getIdentity(), ros::Time::now(), camera_frame_id, imu_frame_id_);
-    }   
+        ROS_INFO("Waiting for tf lookup between frames %s and %s...", camera_frame_id.c_str(), imu_frame_id_.c_str());
+        tf::TransformListener listener;
+        try {
+            listener.waitForTransform(imu_frame_id_, camera_frame_id, ros::Time(0), ros::Duration(10.0) );
+            listener.lookupTransform(imu_frame_id_, camera_frame_id, ros::Time(0), camera_to_imu_transform_);
+            ROS_INFO("Tranform between frames %s and %s was found.", camera_frame_id.c_str(), imu_frame_id_.c_str());
+        } catch (tf::TransformException ex) {
+            ROS_ERROR("%s. Using identity transform.",ex.what());
+            camera_to_imu_transform_ = tf::StampedTransform( tf::Transform::getIdentity(), ros::Time::now(), camera_frame_id, imu_frame_id_);
+        }   
+    }
 
     // Subscribe to IMU publisher
     ROS_INFO("Subscribing to %s.", imu_topic.c_str());
     imu_sub_ = n_.subscribe(imu_topic, 1000, &InEKF_ROS::imuCallback, this);
+
     // Subscribe to Landmark publisher
-    ROS_INFO("Subscribing to %s.", landmarks_topic.c_str());
-    landmarks_sub_ = n_.subscribe(landmarks_topic, 1000, &InEKF_ROS::landmarkCallback, this);
+    if (enable_landmarks_) {
+        ROS_INFO("Subscribing to %s.", landmarks_topic.c_str());
+        landmarks_sub_ = n_.subscribe(landmarks_topic, 1000, &InEKF_ROS::landmarkCallback, this);
+        // landmarks_sub_ = n_.subscribe(landmarks_topic, 1000, &InEKF_ROS::aprilTagCallback, this);
+    }
+
+    // Subscribe to Kinematics and Contact publishers
+    if (enable_kinematics_) {
+        string kinematics_topic, contact_topic;
+        nh.param<string>("settings/kinematics_topic", kinematics_topic, "/kinematics");
+        nh.param<string>("settings/contact_topic", contact_topic, "/contact");
+        ROS_INFO("Subscribing to %s.", kinematics_topic.c_str());
+        ROS_INFO("Subscribing to %s.", contact_topic.c_str());
+        kinematics_sub_ = n_.subscribe(kinematics_topic, 1000, &InEKF_ROS::kinematicsCallback, this);
+        contact_sub_ = n_.subscribe(contact_topic, 1000, &InEKF_ROS::contactCallback, this);
+    }
+
 }
 
 // IMU Callback function
@@ -184,8 +213,36 @@ void InEKF_ROS::imuCallback(const sensor_msgs::Imu::ConstPtr& msg) {
 }
 
 // Landmark Callback function
+void InEKF_ROS::aprilTagCallback(const apriltag_msgs::AprilTagDetectionArray::ConstPtr& msg) {
+    // Convert from apriltag_msg to landmark
+    if (msg->detections.size() == 0) return;
+    inekf_msgs::LandmarkArray::Ptr msg2(new inekf_msgs::LandmarkArray);
+    msg2->header = msg->detections[0].pose.header;
+    for (auto it=msg->detections.begin(); it!=msg->detections.end(); ++it) {
+        inekf_msgs::Landmark landmark;
+        landmark.id = it->id;
+        landmark.position = it->pose.pose.position;
+        msg2->landmarks.push_back(landmark);
+    }
+    shared_ptr<Measurement> ptr(new LandmarkMeasurement(msg2, camera_to_imu_transform_));
+    m_queue_.push(ptr);
+}
+
+// Landmark Callback function
 void InEKF_ROS::landmarkCallback(const inekf_msgs::LandmarkArray::ConstPtr& msg) {
     shared_ptr<Measurement> ptr(new LandmarkMeasurement(msg, camera_to_imu_transform_));
+    m_queue_.push(ptr);
+}
+
+// Kinematics Callback function
+void InEKF_ROS::kinematicsCallback(const inekf_msgs::KinematicsArray::ConstPtr& msg) {
+    shared_ptr<Measurement> ptr(new KinematicMeasurement(msg));
+    m_queue_.push(ptr);
+}
+
+// Contact Callback function
+void InEKF_ROS::contactCallback(const inekf_msgs::ContactArray::ConstPtr& msg) {
+    shared_ptr<Measurement> ptr(new ContactMeasurement(msg));
     m_queue_.push(ptr);
 }
 
@@ -219,7 +276,7 @@ void InEKF_ROS::mainFilteringThread() {
         // Handle measurement
         switch (m_ptr->getType()) {
             case IMU: {
-                //ROS_INFO("Propagating state with IMU measurements.");
+                // ROS_INFO("Propagating state with IMU measurements.");
                 auto imu_ptr = dynamic_pointer_cast<ImuMeasurement>(m_ptr);
                 t = imu_ptr->getTime();
                 filter_.Propagate(imu_ptr_last->getData(), t - t_last);
@@ -228,28 +285,50 @@ void InEKF_ROS::mainFilteringThread() {
                 break;
             }
             case LANDMARK: {
-                //ROS_INFO("Correcting state with LANDMARK measurements.");
+                // ROS_INFO("Correcting state with LANDMARK measurements.");
                 auto landmark_ptr = dynamic_pointer_cast<LandmarkMeasurement>(m_ptr);
                 filter_.CorrectLandmarks(landmark_ptr->getData());
-                if (publish_landmark_measurement_markers_) {
+                if (publish_visualization_markers_) {
                     this->publishLandmarkMeasurementMarkers(landmark_ptr);
                 }
+                break;
+            }
+            case KINEMATIC: {
+                // ROS_INFO("Correcting state with KINEMATIC measurements.");
+                auto kinematic_ptr = dynamic_pointer_cast<KinematicMeasurement>(m_ptr);
+                filter_.CorrectKinematics(kinematic_ptr->getData());
+                if (publish_visualization_markers_) {
+                    this->publishKinematicMeasurementMarkers(kinematic_ptr);
+                }
+                break;
+            }
+            case CONTACT: {
+                // ROS_INFO("Setting filter's contact state with CONTACT measurements.");
+                auto contact_ptr = dynamic_pointer_cast<ContactMeasurement>(m_ptr);
+                filter_.setContacts(contact_ptr->getData());
+                // map<int,bool> contacts = filter_.getContacts();
+                // for (auto it=contacts.begin(); it!=contacts.end(); ++it) {
+                //     cout << "contact id: " << it->first << ", contact state: " << it->second << endl;
+                // }
                 break;
             }
             default:
                 cout << "Unknown measurement, skipping...\n";
         }
+        // cout << filter_.getState() << endl;
+        // RobotState s = filter_.getState();
+        // cout << "X dim: " << s.dimX() << endl;
     }
 }
 
 // Publish line markers between IMU and detected landmarks
 void InEKF_ROS::publishLandmarkMeasurementMarkers(shared_ptr<LandmarkMeasurement> ptr){
-    // Create and send marker for estimated trajectory visualization
+    visualization_msgs::MarkerArray markers_msg;
     visualization_msgs::Marker landmark_measurement_msg;
     landmark_measurement_msg.header.frame_id = map_frame_id_;
     landmark_measurement_msg.header.stamp = ros::Time(ptr->getTime());
     landmark_measurement_msg.header.seq = 0;
-    landmark_measurement_msg.ns = "trajectory";
+    landmark_measurement_msg.ns = "landmark_measurements";
     landmark_measurement_msg.type = visualization_msgs::Marker::LINE_LIST;
     landmark_measurement_msg.action = visualization_msgs::Marker::ADD;
     landmark_measurement_msg.id = 0;
@@ -260,7 +339,7 @@ void InEKF_ROS::publishLandmarkMeasurementMarkers(shared_ptr<LandmarkMeasurement
     landmark_measurement_msg.color.r = 0.0;
     landmark_measurement_msg.color.g = 0.0;
     landmark_measurement_msg.color.b = 1.0;
-    landmark_measurement_msg.lifetime = ros::Duration(100.0);
+    // landmark_measurement_msg.lifetime = ros::Duration(100.0);
 
     geometry_msgs::Point base_point, landmark_point;
     RobotState state = filter_.getState();
@@ -296,7 +375,55 @@ void InEKF_ROS::publishLandmarkMeasurementMarkers(shared_ptr<LandmarkMeasurement
         }
     }
     // Publish
-    landmark_measurement_vis_pub_.publish(landmark_measurement_msg);
+    markers_msg.markers.push_back(landmark_measurement_msg);
+    visualization_pub_.publish(markers_msg);
+}
+
+// Publish line markers between IMU and detected contact positions
+void InEKF_ROS::publishKinematicMeasurementMarkers(shared_ptr<KinematicMeasurement> ptr){
+    visualization_msgs::MarkerArray markers_msg;
+    visualization_msgs::Marker kinematic_measurement_msg;
+    kinematic_measurement_msg.header.frame_id = map_frame_id_;
+    kinematic_measurement_msg.header.stamp = ros::Time(ptr->getTime());
+    kinematic_measurement_msg.header.seq = 0;
+    kinematic_measurement_msg.ns = "kinematic_measurements";
+    kinematic_measurement_msg.type = visualization_msgs::Marker::LINE_LIST;
+    kinematic_measurement_msg.action = visualization_msgs::Marker::ADD;
+    kinematic_measurement_msg.id = 0;
+    kinematic_measurement_msg.scale.x = 0.01;
+    kinematic_measurement_msg.scale.y = 0.01;
+    kinematic_measurement_msg.scale.z = 0.01;
+    kinematic_measurement_msg.color.a = 1.0; // Don't forget to set the alpha!
+    kinematic_measurement_msg.color.r = 1.0;
+    kinematic_measurement_msg.color.g = 0.0;
+    kinematic_measurement_msg.color.b = 1.0;
+    // kinematic_measurement_msg.lifetime = ros::Duration(100.0);
+
+    geometry_msgs::Point base_point, contact_point;
+    RobotState state = filter_.getState();
+    Eigen::MatrixXd X = state.getX();
+    Eigen::Vector3d position = state.getPosition();
+    base_point.x = position(0);
+    base_point.y = position(1);
+    base_point.z = position(2);
+
+    vectorTupleIntMatrix4dMatrix6d measured_kinematics = ptr->getData();
+    map<int,int> estimated_contacts = filter_.getEstimatedContactPositions();
+    for (auto it=measured_kinematics.begin(); it!=measured_kinematics.end(); ++it) {
+        // Search through estimated contacts
+        auto search_estimated = estimated_contacts.find(get<0>(*it));
+        if (search_estimated != estimated_contacts.end()) {
+            contact_point.x = X(0,search_estimated->second);
+            contact_point.y = X(1,search_estimated->second);
+            contact_point.z = X(2,search_estimated->second);
+            kinematic_measurement_msg.points.push_back(base_point);
+            kinematic_measurement_msg.points.push_back(contact_point);
+            continue;
+        }
+    }
+    // Publish
+    markers_msg.markers.push_back(kinematic_measurement_msg);
+    visualization_pub_.publish(markers_msg);
 }
 
 // Thread for publishing the output of the filter
@@ -333,23 +460,6 @@ void InEKF_ROS::outputPublishingThread() {
     ros::Publisher pose_pub = n_.advertise<geometry_msgs::PoseWithCovarianceStamped>(pose_topic, 1000);
     ros::Publisher state_pub = n_.advertise<inekf_msgs::State>(state_topic, 1000);
     static tf::TransformBroadcaster tf_broadcaster;
-
-    // Create publishers for landmark position and trajectory markers if requested
-    ros::Publisher landmark_vis_pub, traj_vis_pub;
-    nh.param<bool>("settings/publish_landmark_position_markers", publish_landmark_position_markers_, false);
-    if (publish_landmark_position_markers_) {
-        string landmark_position_markers_topic;
-        nh.param<string>("settings/landmark_position_markers_topic", landmark_position_markers_topic, "/landmark_position_markers");
-        landmark_vis_pub = n_.advertise<visualization_msgs::MarkerArray>(landmark_position_markers_topic, 1000);
-        ROS_INFO("Landmark visualization topic publishing under %s.", landmark_position_markers_topic.c_str());
-    }
-    nh.param<bool>("settings/publish_trajectory_markers", publish_trajectory_markers_, false);
-    if (publish_trajectory_markers_) {
-        string trajectory_markers_topic;
-        nh.param<string>("settings/trajectory_markers_topic", trajectory_markers_topic, "/trajectory_markers");
-        traj_vis_pub = n_.advertise<visualization_msgs::Marker>(trajectory_markers_topic, 1000);
-        ROS_INFO("Trajectory visualization topic publishing under %s.", trajectory_markers_topic.c_str());
-    }
     
     // Init loop params
     uint32_t seq = 0;
@@ -427,17 +537,18 @@ void InEKF_ROS::outputPublishingThread() {
         state_msg.accelerometer_bias.z = ba(2); 
         state_pub.publish(state_msg);
 
-        // Create and send markers for landmark visualization
-        mapIntVector3d prior_landmarks = filter_.getPriorLandmarks();
-        if (publish_landmark_position_markers_) {
-            visualization_msgs::MarkerArray landmark_vis_msg;
+        // Create and send markers for visualization
+        if (publish_visualization_markers_) {
+            visualization_msgs::MarkerArray markers_msg;
+
             // Add prior landmarks
+            mapIntVector3d prior_landmarks = filter_.getPriorLandmarks();
             for (auto it=prior_landmarks.begin(); it!=prior_landmarks.end(); ++it) {
                 visualization_msgs::Marker marker;
                 marker.header.frame_id = map_frame_id_;
                 marker.header.stamp = ros::Time::now();
                 marker.header.seq = seq;
-                marker.ns = "landmarks";
+                marker.ns = "prior_landmarks";
                 marker.id = it->first;
                 marker.type = visualization_msgs::Marker::SPHERE;
                 marker.action = visualization_msgs::Marker::ADD;
@@ -455,15 +566,17 @@ void InEKF_ROS::outputPublishingThread() {
                 marker.color.r = 0.0;
                 marker.color.g = 1.0;
                 marker.color.b = 1.0;
-                landmark_vis_msg.markers.push_back(marker);
+                marker.lifetime = ros::Duration(0.1);
+                markers_msg.markers.push_back(marker);
             }
+
             // Add estimated landmarks
             for (auto it=estimated_landmarks.begin(); it!=estimated_landmarks.end(); ++it) {
                 visualization_msgs::Marker marker;
                 marker.header.frame_id = map_frame_id_;
                 marker.header.stamp = ros::Time::now();
                 marker.header.seq = seq;
-                marker.ns = "landmarks";
+                marker.ns = "estimated_landmarks";
                 marker.id = it->first;
                 marker.type = visualization_msgs::Marker::SPHERE;
                 marker.action = visualization_msgs::Marker::ADD;
@@ -481,37 +594,67 @@ void InEKF_ROS::outputPublishingThread() {
                 marker.color.r = 0.0;
                 marker.color.g = 1.0;
                 marker.color.b = 0.0;
-                landmark_vis_msg.markers.push_back(marker);
-            }
-            landmark_vis_pub.publish(landmark_vis_msg);
-        }
+                marker.lifetime = ros::Duration(0.1);
+                markers_msg.markers.push_back(marker);
+            }        
 
-        // Create and send marker for estimated trajectory visualization
-        if (publish_trajectory_markers_) {
-            visualization_msgs::Marker traj_vis_msg;
-            traj_vis_msg.header.frame_id = map_frame_id_;
-            traj_vis_msg.header.stamp = ros::Time();
-            traj_vis_msg.header.seq = seq;
-            traj_vis_msg.ns = "trajectory";
-            traj_vis_msg.type = visualization_msgs::Marker::LINE_STRIP;
-            traj_vis_msg.action = visualization_msgs::Marker::ADD;
-            traj_vis_msg.id = seq;
-            traj_vis_msg.scale.x = 0.01;
-            traj_vis_msg.color.a = 1.0; // Don't forget to set the alpha!
-            traj_vis_msg.color.r = 1.0;
-            traj_vis_msg.color.g = 0.0;
-            traj_vis_msg.color.b = 0.0;
-            traj_vis_msg.lifetime = ros::Duration(100.0);
+            // Add estimated contacts
+            map<int,int> estimated_contacts = filter_.getEstimatedContactPositions();
+            for (auto it=estimated_contacts.begin(); it!=estimated_contacts.end(); ++it) {
+                visualization_msgs::Marker marker;
+                marker.header.frame_id = map_frame_id_;
+                marker.header.stamp = ros::Time::now();
+                marker.header.seq = seq;
+                marker.ns = "estimated_contacts";
+                marker.id = it->first;
+                marker.type = visualization_msgs::Marker::SPHERE;
+                marker.action = visualization_msgs::Marker::ADD;
+                marker.pose.position.x = X(0,it->second);
+                marker.pose.position.y = X(1,it->second);
+                marker.pose.position.z = X(2,it->second);
+                marker.pose.orientation.x = 0.0;
+                marker.pose.orientation.y = 0.0;
+                marker.pose.orientation.z = 0.0;
+                marker.pose.orientation.w = 1.0;
+                marker.scale.x = sqrt(P(3+3*(it->second-3),3+3*(it->second-3)));
+                marker.scale.y = sqrt(P(4+3*(it->second-3),4+3*(it->second-3)));
+                marker.scale.z = sqrt(P(5+3*(it->second-3),5+3*(it->second-3)));
+                marker.color.a = 1.0; // Don't forget to set the alpha!
+                marker.color.r = 0.0;
+                marker.color.g = 1.0;
+                marker.color.b = 0.0;
+                marker.lifetime = ros::Duration(0.1);
+                markers_msg.markers.push_back(marker);
+            }
+
+            // Add trajectory
+            visualization_msgs::Marker traj_marker;
+            traj_marker.header.frame_id = map_frame_id_;
+            traj_marker.header.stamp = ros::Time();
+            traj_marker.header.seq = seq;
+            traj_marker.ns = "trajectory";
+            traj_marker.type = visualization_msgs::Marker::LINE_STRIP;
+            traj_marker.action = visualization_msgs::Marker::ADD;
+            traj_marker.id = seq;
+            traj_marker.scale.x = 0.01;
+            traj_marker.color.a = 1.0; // Don't forget to set the alpha!
+            traj_marker.color.r = 1.0;
+            traj_marker.color.g = 0.0;
+            traj_marker.color.b = 0.0;
+            traj_marker.lifetime = ros::Duration(100.0);
             geometry_msgs::Point point;
             point.x = position(0);
             point.y = position(1);
             point.z = position(2);
             if (seq>0){
-                traj_vis_msg.points.push_back(point_last);
-                traj_vis_msg.points.push_back(point);
-                traj_vis_pub.publish(traj_vis_msg);
+                traj_marker.points.push_back(point_last);
+                traj_marker.points.push_back(point);
+                markers_msg.markers.push_back(traj_marker);
             }   
             point_last = point;
+
+            // Publish markers
+            visualization_pub_.publish(markers_msg);
         }
 
         seq++;

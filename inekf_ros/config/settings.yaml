@@ -1,14 +1,31 @@
 settings:
   imu_topic: "/imu"
-  landmarks_topic: "/landmarks"
   map_frame_id : "/map"
   base_frame_id: "/imu"
-  publish_rate: 100.0
+  publish_rate: 200.0
   pose_topic: "/pose"
   state_topic: "/state"
-  publish_landmark_position_markers: true
-  landmark_position_markers_topic: "/landmark_position_markers"
-  publish_trajectory_markers: true
-  trajectory_markers_topic: "/trajectory_markers"
-  publish_landmark_measurement_markers: true
-  landmark_measurement_markers_topic: "/landmark_measurement_markers"
+  publish_visualization_markers: true
+  visualization_markers_topic: "/markers"
+  enable_landmarks: true
+  landmarks_topic: "/landmarks"
+  enable_kinematics: true
+  kinematics_topic: "/kinematics"
+  contact_topic: "/contacts"
+
+
+# settings:
+#   imu_topic: "/multisense/imu/imu_data"
+#   landmarks_topic: "/apriltag2_pub/apriltag2_tag_detections_array"
+#   map_frame_id : "/map"
+#   base_frame_id: "/multisense/accel"
+#   publish_rate: 100.0
+#   pose_topic: "/pose"
+#   state_topic: "/state"
+#   publish_landmark_position_markers: true
+#   landmark_position_markers_topic: "/landmark_position_markers"
+#   publish_trajectory_markers: true
+#   trajectory_markers_topic: "/trajectory_markers"
+#   publish_landmark_measurement_markers: true
+#   landmark_measurement_markers_topic: "/landmark_measurement_markers"
+

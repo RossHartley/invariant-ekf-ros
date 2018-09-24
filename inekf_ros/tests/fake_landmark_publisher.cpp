@@ -10,7 +10,7 @@ using namespace std;
  */
 int main(int argc, char **argv) {
     // Initialize ROS
-    ros::init(argc, argv, "fake_multi_landmark_publisher");
+    ros::init(argc, argv, "fake_landmark_publisher");
     ros::NodeHandle n;
     // Create Fake landmark publisher
     ros::Publisher imu_pub = n.advertise<inekf_msgs::LandmarkArray>("/landmarks", 1000);

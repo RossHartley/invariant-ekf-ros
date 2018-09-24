@@ -12,6 +12,10 @@ find_package(
 
 add_message_files(
     FILES
+    Contact.msg
+    ContactArray.msg
+    Kinematics.msg
+    KinematicsArray.msg
     Landmark.msg
     LandmarkStamped.msg
     LandmarkArray.msg
