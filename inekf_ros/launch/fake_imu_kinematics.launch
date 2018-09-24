@@ -15,7 +15,7 @@
   <!-- Create fake landmark data publisher-->
   <node name="fake_landmark_publisher" pkg="inekf_ros" type="fake_landmark_publisher_node">
     <rosparam file="$(find inekf_ros)/config/fake_data_noise.yaml" command="load" />
-    <param name="rate" value="20" />
+    <param name="rate" value="2" />
   </node>
 
   <!-- Run Invariant EKF -->

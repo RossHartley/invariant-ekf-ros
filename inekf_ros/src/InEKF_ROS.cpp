@@ -27,6 +27,9 @@ void InEKF_ROS::init() {
     if (nh.getParam("noise/landmark_std", std)) { 
         params.setLandmarkNoise(std);
     }
+    if (nh.getParam("noise/contact_std", std)) { 
+        params.setContactNoise(std);
+    }
     filter_.setNoiseParams(params);
 
     // Set initial state and covariance
@@ -118,6 +121,8 @@ void InEKF_ROS::init() {
 
     // ----- Settings --------
     nh.param<string>("settings/map_frame_id", map_frame_id_, "/map");
+    nh.param<bool>("settings/enable_landmarks", enable_landmarks_, false);
+    nh.param<bool>("settings/enable_kinematics", enable_kinematics_, false);
 
     // Create publishers visualization markers if requested
     nh.param<bool>("settings/publish_visualization_markers", publish_visualization_markers_, false);
@@ -306,18 +311,11 @@ void InEKF_ROS::mainFilteringThread() {
                 // ROS_INFO("Setting filter's contact state with CONTACT measurements.");
                 auto contact_ptr = dynamic_pointer_cast<ContactMeasurement>(m_ptr);
                 filter_.setContacts(contact_ptr->getData());
-                // map<int,bool> contacts = filter_.getContacts();
-                // for (auto it=contacts.begin(); it!=contacts.end(); ++it) {
-                //     cout << "contact id: " << it->first << ", contact state: " << it->second << endl;
-                // }
                 break;
             }
             default:
                 cout << "Unknown measurement, skipping...\n";
         }
-        // cout << filter_.getState() << endl;
-        // RobotState s = filter_.getState();
-        // cout << "X dim: " << s.dimX() << endl;
     }
 }
 
@@ -339,7 +337,6 @@ void InEKF_ROS::publishLandmarkMeasurementMarkers(shared_ptr<LandmarkMeasurement
     landmark_measurement_msg.color.r = 0.0;
     landmark_measurement_msg.color.g = 0.0;
     landmark_measurement_msg.color.b = 1.0;
-    // landmark_measurement_msg.lifetime = ros::Duration(100.0);
 
     geometry_msgs::Point base_point, landmark_point;
     RobotState state = filter_.getState();
@@ -397,7 +394,6 @@ void InEKF_ROS::publishKinematicMeasurementMarkers(shared_ptr<KinematicMeasureme
     kinematic_measurement_msg.color.r = 1.0;
     kinematic_measurement_msg.color.g = 0.0;
     kinematic_measurement_msg.color.b = 1.0;
-    // kinematic_measurement_msg.lifetime = ros::Duration(100.0);
 
     geometry_msgs::Point base_point, contact_point;
     RobotState state = filter_.getState();

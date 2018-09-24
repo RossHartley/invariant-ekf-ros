@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
         frame.pose.pose.orientation.x = 0;
         frame.pose.pose.orientation.y = 0;
         frame.pose.pose.orientation.z = 0;
-        boost::array<double, 36> cov = { {0.01,0,0,0,0,0, 0,0.01,0,0,0,0, 0,0,0.01,0,0,0, 0,0,0,0.01,0,0, 0,0,0,0,0.01,0, 0,0,0,0,0,0.01} };
+        boost::array<double, 36> cov = { {0.001,0,0,0,0,0, 0,0.001,0,0,0,0, 0,0,0.001,0,0,0, 0,0,0,0.001,0,0, 0,0,0,0,0.001,0, 0,0,0,0,0,0.001} };
         frame.pose.covariance = cov;
         kinematics_msg.frames.push_back(frame);
 

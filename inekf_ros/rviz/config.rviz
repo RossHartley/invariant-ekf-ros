@@ -75,10 +75,10 @@ Visualization Manager:
       Marker Topic: /markers
       Name: MarkerArray
       Namespaces:
-        contacts: true
         estimated_contacts: true
         estimated_landmarks: true
-        landmarks: true
+        kinematic_measurements: true
+        landmark_measurements: true
         trajectory: true
       Queue Size: 100
       Value: true
@@ -143,5 +143,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1536
-  X: 125
-  Y: 145
+  X: 141
+  Y: 207
