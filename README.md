@@ -2,7 +2,8 @@
 This repository contains a ROS wrapper for the C++ inekf library located at [https://github.com/RossHartley/invariant-ekf](https://github.com/RossHartley/invariant-ekf)
 
 This filter can be used to estimate a robot's 3D pose and velocity using an IMU motion model for propagation. The following measurements are currently supported:
-* Landmark position measurements
+* Prior landmark position measurements (localization)
+* Estaimted landmark position measurements (SLAM)
 * Kinematic and contact measurements
 
 
