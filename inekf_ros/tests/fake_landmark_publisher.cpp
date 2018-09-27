@@ -1,3 +1,16 @@
+/* ----------------------------------------------------------------------------
+ * Copyright 2018, Ross Hartley <m.ross.hartley@gmail.com>
+ * All Rights Reserved
+ * See LICENSE for the license information
+ * -------------------------------------------------------------------------- */
+
+/**
+ *  @file   fake_landmark_publisher.cpp
+ *  @author Ross Hartley
+ *  @brief  Publishes fake landmark data over the /landmarks topic
+ *  @date   September 27, 2018
+ **/
+
 #include "ros/ros.h"
 #include "inekf_msgs/Landmark.h"
 #include "inekf_msgs/LandmarkArray.h"

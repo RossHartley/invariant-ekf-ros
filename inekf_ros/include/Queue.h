@@ -1,13 +1,26 @@
+/*
+  Copyright (c) 2013, Juan Palacios <juan.palacios.puyana@gmail.com>
+  All rights reserved.
+*/
+
+/**
+ *  @file   Queue.h
+ *  @author Juan Palacios
+ *  @brief  Thread-safe queue class (https://github.com/juanchopanza)
+ *  @date   September 27, 2018
+ **/
+
 #include <queue>
 #include <thread>
 #include <mutex>
+#include <vector>
 #include <condition_variable>
  
-template <typename T>
+template <class T, class Container = std::vector<T>, class Compare = std::less<typename Container::value_type> >
 class Queue
 {
  public:
- 
+
   T pop()
   {
     std::unique_lock<std::mutex> mlock(mutex_);
@@ -15,7 +28,7 @@ class Queue
     {
       cond_.wait(mlock);
     }
-    auto item = queue_.front();
+    auto item = queue_.top();
     queue_.pop();
     return item;
   }
@@ -27,7 +40,7 @@ class Queue
     {
       cond_.wait(mlock);
     }
-    item = queue_.front();
+    item = queue_.top();
     queue_.pop();
   }
  
@@ -60,7 +73,7 @@ class Queue
   }
 
  private:
-  std::queue<T> queue_;
+  std::priority_queue<T,Container,Compare> queue_;
   std::mutex mutex_;
   std::condition_variable cond_;
 };

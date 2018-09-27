@@ -1,3 +1,16 @@
+/* ----------------------------------------------------------------------------
+ * Copyright 2018, Ross Hartley <m.ross.hartley@gmail.com>
+ * All Rights Reserved
+ * See LICENSE for the license information
+ * -------------------------------------------------------------------------- */
+
+/**
+ *  @file   InEKF_ROS.cpp
+ *  @author Ross Hartley
+ *  @brief  Source file for a ROS wrapper of the Invariant EKF 
+ *  @date   September 27, 2018
+ **/
+
 #include "InEKF_ROS.h"
 using namespace std;
 using namespace inekf;
@@ -258,7 +271,7 @@ void InEKF_ROS::mainFilteringThread() {
     double t, t_last;
 
     // Block until first IMU measurement is received
-    while (true) {
+    while (ros::ok()) {
         // Try next item (Blocking)
         m_queue_.pop(m_ptr);
         if (m_ptr->getType() == IMU) {
@@ -271,13 +284,18 @@ void InEKF_ROS::mainFilteringThread() {
     }
     
     // Main loop
-    while (true) {
+    while (ros::ok()) {
         // Throw warning if measurement queue is getting too large
         if (m_queue_.size() > MAX_QUEUE_SIZE) {
             ROS_WARN("Measurement queue size (%d) is greater than MAX_QUEUE_SIZE. Filter is not realtime!", m_queue_.size());
         }   
+        // Wait until buffer is full
+        while(m_queue_.size() < QUEUE_BUFFER_SIZE) {
+            this_thread::sleep_for(chrono::milliseconds(10));
+        }
         // Retrieve next measurement (Blocking)
         m_queue_.pop(m_ptr);
+        // ROS_ERROR("Time: %f", m_ptr->getTime());
         // Handle measurement
         switch (m_ptr->getType()) {
             case IMU: {
