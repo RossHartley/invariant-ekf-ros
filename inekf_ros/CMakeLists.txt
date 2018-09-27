@@ -168,6 +168,12 @@ add_executable(fake_landmark_publisher_node tests/fake_landmark_publisher.cpp)
 add_executable(fake_contact_kinematics_publisher_node tests/fake_contact_kinematics_publisher.cpp)
 add_executable(data_file_publisher_node tests/data_file_publisher.cpp)
 
+add_dependencies(inekf_node inekf_msgs_generate_messages_cpp)
+add_dependencies(fake_imu_publisher_node inekf_msgs_generate_messages_cpp)
+add_dependencies(fake_landmark_publisher_node inekf_msgs_generate_messages_cpp)
+add_dependencies(fake_contact_kinematics_publisher_node inekf_msgs_generate_messages_cpp)
+add_dependencies(data_file_publisher_node inekf_msgs_generate_messages_cpp)
+
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
