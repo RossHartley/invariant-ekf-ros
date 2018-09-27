@@ -1,5 +1,5 @@
 prior:
-  base_orientation: [1,0,0,0]
+  base_orientation: [0,1,0,0]
   base_velocity: [0,0,0]
   base_position: [0,0,0]
   gyroscope_bias: [0,0,0]
@@ -7,8 +7,8 @@ prior:
   base_orientation_std: 0.1
   base_velocity_std: 0.1
   base_position_std: 0.001
-  gyroscope_bias_std: 0.2
-  accelerometer_bias_std: 0.2
+  gyroscope_bias_std: 0.1
+  accelerometer_bias_std: 0.1
   # landmarks: 
   #   - id: 0
   #     position: [1.0,1.0,0.0] 

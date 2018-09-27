@@ -87,8 +87,8 @@ void InEKF_ROS::init() {
     state.setRotation(R_init);
     state.setVelocity(v_init);
     state.setPosition(p_init);
-    state.setAngularVelocityBias(bg_init);
-    state.setLinearAccelerationBias(ba_init);
+    state.setGyroscopeBias(bg_init);
+    state.setAccelerometerBias(ba_init);
     state.setP(P_init);
     filter_.setState(state);
 
@@ -523,11 +523,11 @@ void InEKF_ROS::outputPublishingThread() {
             landmark.position.z = X(2,it->second);
             state_msg.landmarks.push_back(landmark);
         }
-        Eigen::Vector3d bg = state.getAngularVelocityBias();
+        Eigen::Vector3d bg = state.getGyroscopeBias();
         state_msg.gyroscope_bias.x = bg(0); 
         state_msg.gyroscope_bias.y = bg(1); 
         state_msg.gyroscope_bias.z = bg(2); 
-        Eigen::Vector3d ba = state.getLinearAccelerationBias();
+        Eigen::Vector3d ba = state.getAccelerometerBias();
         state_msg.accelerometer_bias.x = ba(0); 
         state_msg.accelerometer_bias.y = ba(1); 
         state_msg.accelerometer_bias.z = ba(2); 
@@ -562,7 +562,7 @@ void InEKF_ROS::outputPublishingThread() {
                 marker.color.r = 0.0;
                 marker.color.g = 1.0;
                 marker.color.b = 1.0;
-                marker.lifetime = ros::Duration(0.1);
+                marker.lifetime = ros::Duration(1.0/publish_rate);
                 markers_msg.markers.push_back(marker);
             }
 
@@ -590,7 +590,7 @@ void InEKF_ROS::outputPublishingThread() {
                 marker.color.r = 0.0;
                 marker.color.g = 1.0;
                 marker.color.b = 0.0;
-                marker.lifetime = ros::Duration(0.1);
+                marker.lifetime = ros::Duration(1.0/publish_rate);
                 markers_msg.markers.push_back(marker);
             }        
 
@@ -619,7 +619,7 @@ void InEKF_ROS::outputPublishingThread() {
                 marker.color.r = 0.0;
                 marker.color.g = 1.0;
                 marker.color.b = 0.0;
-                marker.lifetime = ros::Duration(0.1);
+                marker.lifetime = ros::Duration(1.0/publish_rate);
                 markers_msg.markers.push_back(marker);
             }
 
