@@ -1,3 +1,16 @@
+/* ----------------------------------------------------------------------------
+ * Copyright 2018, Ross Hartley <m.ross.hartley@gmail.com>
+ * All Rights Reserved
+ * See LICENSE for the license information
+ * -------------------------------------------------------------------------- */
+
+/**
+ *  @file   Measurement.cpp
+ *  @author Ross Hartley
+ *  @brief  Source file for Measurement class
+ *  @date   September 27, 2018
+ **/
+
 #include "Measurement.h"
 using namespace std;
 using namespace inekf;

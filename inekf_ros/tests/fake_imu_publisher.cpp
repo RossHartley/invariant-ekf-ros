@@ -1,3 +1,16 @@
+/* ----------------------------------------------------------------------------
+ * Copyright 2018, Ross Hartley <m.ross.hartley@gmail.com>
+ * All Rights Reserved
+ * See LICENSE for the license information
+ * -------------------------------------------------------------------------- */
+
+/**
+ *  @file   fake_imu_publisher.cpp
+ *  @author Ross Hartley
+ *  @brief  Publishes fake imu data over the /imu topic
+ *  @date   September 27, 2018
+ **/
+
 #include "ros/ros.h"
 #include "sensor_msgs/Imu.h"
 #include <random>

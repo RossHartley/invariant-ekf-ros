@@ -1,3 +1,16 @@
+/* ----------------------------------------------------------------------------
+ * Copyright 2018, Ross Hartley <m.ross.hartley@gmail.com>
+ * All Rights Reserved
+ * See LICENSE for the license information
+ * -------------------------------------------------------------------------- */
+
+/**
+ *  @file   Measurement.h
+ *  @author Ross Hartley
+ *  @brief  Header file for Measurement class
+ *  @date   September 27, 2018
+ **/
+
 #ifndef MEASUREMENT_H
 #define MEASUREMENT_H 
 #include <Eigen/Dense>
@@ -11,6 +24,7 @@
 #include "tf/transform_listener.h"
 
 enum MeasurementType {EMPTY, IMU, LANDMARK, KINEMATIC, CONTACT};
+
 
 class Measurement {
 
@@ -28,6 +42,13 @@ class Measurement {
         double t_;
         MeasurementType type_;
 };
+
+struct MeasurementCompare {
+  bool operator()(const std::shared_ptr<Measurement> lhs, const std::shared_ptr<Measurement> rhs) const {
+    return lhs->getTime() > rhs->getTime();
+  }
+};
+
 
 class ImuMeasurement : public Measurement {
 

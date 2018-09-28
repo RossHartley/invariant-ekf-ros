@@ -1,3 +1,16 @@
+/* ----------------------------------------------------------------------------
+ * Copyright 2018, Ross Hartley <m.ross.hartley@gmail.com>
+ * All Rights Reserved
+ * See LICENSE for the license information
+ * -------------------------------------------------------------------------- */
+
+/**
+ *  @file   inekf_node.cpp
+ *  @author Ross Hartley
+ *  @brief  Creates ROS node that runs the invariant-ekf
+ *  @date   September 27, 2018
+ **/
+
 #include "ros/ros.h"
 #include "InEKF_ROS.h"
 #include <chrono>
@@ -17,26 +30,3 @@ int main(int argc, char **argv) {
 
     return 0;
 }
-
-
-    // Test InEKF filter speed
-    // int N = 10000;
-    // InEKF filter;
-    // cout << filter.getNoiseParams() << endl;
-    // cout << filter.getState() << endl;
-    // Eigen::Matrix<double,6,1> m; m << 0,0,0, 0,0,9.81;
-    // double dt = 0.01;
-    // cout << "Propagating " << N << " IMU measurements...\n";
-    // int64_t max_duration = 0;
-    // int64_t sum_duration = 0;
-    // for(int i=0; i<N; ++i){
-    //     chrono::high_resolution_clock::time_point start_time = chrono::high_resolution_clock::now();
-    //     filter.Propagate(m, dt);
-    //     chrono::high_resolution_clock::time_point end_time = chrono::high_resolution_clock::now();
-    //     auto duration = chrono::duration_cast<chrono::microseconds>( end_time - start_time ).count();
-    //     sum_duration += duration;
-    //     if (duration > max_duration)
-    //         max_duration = duration;
-    // }
-    // cout << "max duration: " <<  max_duration << endl;
-    // cout << "average duration: " <<  double(sum_duration)/double(N) << endl;

@@ -11,7 +11,7 @@
 	<!--<node pkg="apriltag2ROS" type="apriltag2_pub" name="apriltag2_pub" />-->
 
   <!-- Create data publisher-->
-  <node name="data_file_publisher" pkg="inekf_ros" type="data_file_publisher_node">
+  <node name="data_file_publisher" pkg="inekf_ros" type="data_file_publisher_node" >
     <param name="data_file" type="string" value="$(find inekf_ros)/data/imu_landmark_kinematic_measurements.txt" />
   </node>
   

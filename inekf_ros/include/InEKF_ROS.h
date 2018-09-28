@@ -1,3 +1,16 @@
+/* ----------------------------------------------------------------------------
+ * Copyright 2018, Ross Hartley <m.ross.hartley@gmail.com>
+ * All Rights Reserved
+ * See LICENSE for the license information
+ * -------------------------------------------------------------------------- */
+
+/**
+ *  @file   InEKF_ROS.h
+ *  @author Ross Hartley
+ *  @brief  Header file for a ROS wrapper of the Invariant EKF 
+ *  @date   September 27, 2018
+ **/
+
 #ifndef INEKF_ROS_H
 #define INEKF_ROS_H 
 #include <Eigen/Dense>
@@ -19,7 +32,9 @@
 #include "apriltag_msgs/AprilTagDetectionArray.h"
 #include <mutex>
 
-#define MAX_QUEUE_SIZE 100
+#define QUEUE_BUFFER_SIZE 100
+#define MAX_QUEUE_SIZE 150
+
 
 class InEKF_ROS {
     public:
@@ -36,7 +51,7 @@ class InEKF_ROS {
         ros::Subscriber contact_sub_;
         std::thread filtering_thread_;
         std::thread output_thread_;
-        Queue<std::shared_ptr<Measurement>> m_queue_;
+        Queue<std::shared_ptr<Measurement>, std::vector<std::shared_ptr<Measurement>>, MeasurementCompare> m_queue_;
 
         std::string imu_frame_id_;
         std::string map_frame_id_;

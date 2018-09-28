@@ -1,3 +1,16 @@
+/* ----------------------------------------------------------------------------
+ * Copyright 2018, Ross Hartley <m.ross.hartley@gmail.com>
+ * All Rights Reserved
+ * See LICENSE for the license information
+ * -------------------------------------------------------------------------- */
+
+/**
+ *  @file   fake_contact_kinematics_publisher.cpp
+ *  @author Ross Hartley
+ *  @brief  Publishes fake contact and kinematic data over the /contacts and /kinematics topic
+ *  @date   September 27, 2018
+ **/
+
 #include "ros/ros.h"
 #include "inekf_msgs/ContactArray.h"
 #include "inekf_msgs/KinematicsArray.h"

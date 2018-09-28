@@ -1,3 +1,16 @@
+/* ----------------------------------------------------------------------------
+ * Copyright 2018, Ross Hartley <m.ross.hartley@gmail.com>
+ * All Rights Reserved
+ * See LICENSE for the license information
+ * -------------------------------------------------------------------------- */
+
+/**
+ *  @file   data_file_publisher.cpp
+ *  @author Ross Hartley
+ *  @brief  Publishes data from a text file
+ *  @date   September 27, 2018
+ **/
+
 #include "ros/ros.h"
 #include "sensor_msgs/Imu.h"
 #include "inekf_msgs/LandmarkArray.h"
