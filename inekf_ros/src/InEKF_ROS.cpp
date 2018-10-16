@@ -364,12 +364,12 @@ void InEKF_ROS::publishLandmarkMeasurementMarkers(shared_ptr<LandmarkMeasurement
     base_point.y = position(1);
     base_point.z = position(2);
 
-    vectorPairIntVector3d measured_landmarks = ptr->getData();
+    vectorLandmarks measured_landmarks = ptr->getData();
     mapIntVector3d prior_landmarks = filter_.getPriorLandmarks();
     map<int,int> estimated_landmarks = filter_.getEstimatedLandmarks();
     for (auto it=measured_landmarks.begin(); it!=measured_landmarks.end(); ++it) {
         // Search through prior landmarks
-        auto search_prior = prior_landmarks.find(it->first);
+        auto search_prior = prior_landmarks.find(it->id);
         if (search_prior != prior_landmarks.end()) {
             landmark_point.x = search_prior->second(0);
             landmark_point.y = search_prior->second(1);
@@ -379,7 +379,7 @@ void InEKF_ROS::publishLandmarkMeasurementMarkers(shared_ptr<LandmarkMeasurement
             continue;
         }
         // Search through estimated landmarks
-        auto search_estimated = estimated_landmarks.find(it->first);
+        auto search_estimated = estimated_landmarks.find(it->id);
         if (search_estimated != estimated_landmarks.end()) {
             landmark_point.x = X(0,search_estimated->second);
             landmark_point.y = X(1,search_estimated->second);
@@ -421,11 +421,11 @@ void InEKF_ROS::publishKinematicMeasurementMarkers(shared_ptr<KinematicMeasureme
     base_point.y = position(1);
     base_point.z = position(2);
 
-    vectorTupleIntMatrix4dMatrix6d measured_kinematics = ptr->getData();
+    vectorKinematics measured_kinematics = ptr->getData();
     map<int,int> estimated_contacts = filter_.getEstimatedContactPositions();
     for (auto it=measured_kinematics.begin(); it!=measured_kinematics.end(); ++it) {
         // Search through estimated contacts
-        auto search_estimated = estimated_contacts.find(get<0>(*it));
+        auto search_estimated = estimated_contacts.find(it->id);
         if (search_estimated != estimated_contacts.end()) {
             contact_point.x = X(0,search_estimated->second);
             contact_point.y = X(1,search_estimated->second);

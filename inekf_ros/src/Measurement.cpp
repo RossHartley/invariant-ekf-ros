@@ -46,10 +46,10 @@ LandmarkMeasurement::LandmarkMeasurement(const inekf_msgs::LandmarkArray::ConstP
         tf::Vector3 p_bl = transform*p_cl; // Transform measurement from camera frame to imu frame
         Eigen::Vector3d position;
         position << p_bl.getX(), p_bl.getY(), p_bl.getZ();
-        data_.push_back(pair<int,Eigen::Vector3d> (it->id, position)); 
+        data_.push_back(Landmark(it->id, position)); 
     }
 }
-vectorPairIntVector3d LandmarkMeasurement::getData() { return data_; }; 
+vectorLandmarks LandmarkMeasurement::getData() { return data_; }; 
 
 
 // Construct Contact measurement
@@ -80,10 +80,10 @@ KinematicMeasurement::KinematicMeasurement(const inekf_msgs::KinematicsArray::Co
                 covariance(i,j) = it->pose.covariance[6*i+j]; // Assume row-major
             }
         }
-        data_.push_back(tuple<int,Eigen::Matrix4d,Eigen::Matrix<double,6,6>> (it->id, pose, covariance));
+        data_.push_back(Kinematics(it->id, pose, covariance));
     }
 }
-vectorTupleIntMatrix4dMatrix6d KinematicMeasurement::getData() { return data_; }; 
+vectorKinematics KinematicMeasurement::getData() { return data_; }; 
 
 // Print measurement
 ostream& operator<<(ostream& os, const Measurement& m) {
@@ -96,6 +96,5 @@ ostream& operator<<(ostream& os, const Measurement& m) {
             type_str = "Unknown";
     }
     os << "Measurement type: " << type_str << endl;
-    //os << "Measurement time: " << m.t_ << endl;
-    //os << "Measurement data: \n" << m.data_ << endl;
+    return os;
 }
