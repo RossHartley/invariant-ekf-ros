@@ -59,8 +59,6 @@ class ImuMeasurement : public Measurement {
 
     private: 
         Eigen::Matrix<double,6,1> data_;
-
-        //friend std::ostream& operator<<(std::ostream& os, const ImuMeasurement& m);  
 };
 
 
@@ -69,11 +67,10 @@ class LandmarkMeasurement : public Measurement {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         LandmarkMeasurement(const inekf_msgs::LandmarkArray::ConstPtr& msg, const tf::StampedTransform& transform);
-        inekf::vectorPairIntVector3d getData();
-        //friend std::ostream& operator<<(std::ostream& os, const Measurement& m);  
+        inekf::vectorLandmarks getData();
 
     private:
-        inekf::vectorPairIntVector3d data_;
+        inekf::vectorLandmarks data_;
 };
 
 class ContactMeasurement : public Measurement {
@@ -82,7 +79,6 @@ class ContactMeasurement : public Measurement {
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         ContactMeasurement(const inekf_msgs::ContactArray::ConstPtr& msg);
         std::vector<std::pair<int,bool>> getData();
-        //friend std::ostream& operator<<(std::ostream& os, const Measurement& m);  
 
     private:
         std::vector<std::pair<int,bool>> data_;
@@ -94,11 +90,10 @@ class KinematicMeasurement : public Measurement {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         KinematicMeasurement(const inekf_msgs::KinematicsArray::ConstPtr& msg);
-        inekf::vectorTupleIntMatrix4dMatrix6d getData();
-        //friend std::ostream& operator<<(std::ostream& os, const Measurement& m);  
+        inekf::vectorKinematics getData();
 
     private:
-        inekf::vectorTupleIntMatrix4dMatrix6d data_;
+        inekf::vectorKinematics data_;
 };
 
 
