@@ -177,26 +177,29 @@ void InEKF_ROS::subscribe() {
     if (enable_landmarks_) {
         nh.param<string>("settings/landmarks_topic", landmarks_topic, "/landmarks");
         ROS_INFO("Waiting for Landmark message...");
-        inekf_msgs::LandmarkArray::ConstPtr landmark_msg = ros::topic::waitForMessage<inekf_msgs::LandmarkArray>(landmarks_topic);
-        string camera_frame_id = landmark_msg->header.frame_id;
-        // apriltag_msgs::AprilTagDetectionArray::ConstPtr landmark_msg = ros::topic::waitForMessage<apriltag_msgs::AprilTagDetectionArray>(landmarks_topic);
-        // while(landmark_msg->detections.size()==0) {
-        //     landmark_msg = ros::topic::waitForMessage<apriltag_msgs::AprilTagDetectionArray>(landmarks_topic);
-        //     if (landmark_msg->detections.size() != 0) 
-        //         break;
-        // }
-        // string camera_frame_id = landmark_msg->detections[0].pose.header.frame_id;
+
+        // inekf_msgs::LandmarkArray::ConstPtr landmark_msg = ros::topic::waitForMessage<inekf_msgs::LandmarkArray>(landmarks_topic);
+        // string camera_frame_id = landmark_msg->header.frame_id;
+
+        apriltags2_ros::AprilTagDetectionArray::ConstPtr landmark_msg = ros::topic::waitForMessage<apriltags2_ros::AprilTagDetectionArray>(landmarks_topic);
+        while(landmark_msg->detections.size()==0) {
+            landmark_msg = ros::topic::waitForMessage<apriltags2_ros::AprilTagDetectionArray>(landmarks_topic);
+            if (landmark_msg->detections.size() != 0) 
+                break;
+        }
+        string camera_frame_id = landmark_msg->detections[0].pose.header.frame_id;
+
         ROS_INFO("Landmark message received. Camera frame is set to %s.", camera_frame_id.c_str());
 
-        ROS_INFO("Waiting for tf lookup between frames %s and %s...", camera_frame_id.c_str(), imu_frame_id_.c_str());
+        ROS_INFO("Waiting for tf lookup between frames %s and %s...", imu_frame_id_.c_str(), camera_frame_id.c_str());
         tf::TransformListener listener;
         try {
             listener.waitForTransform(imu_frame_id_, camera_frame_id, ros::Time(0), ros::Duration(10.0) );
-            listener.lookupTransform(imu_frame_id_, camera_frame_id, ros::Time(0), camera_to_imu_transform_);
-            ROS_INFO("Tranform between frames %s and %s was found.", camera_frame_id.c_str(), imu_frame_id_.c_str());
+            listener.lookupTransform(imu_frame_id_, camera_frame_id, ros::Time(0), imu_to_camera_transform_);
+            ROS_INFO("Tranform between frames %s and %s was found.", imu_frame_id_.c_str(), camera_frame_id.c_str());
         } catch (tf::TransformException ex) {
             ROS_ERROR("%s. Using identity transform.",ex.what());
-            camera_to_imu_transform_ = tf::StampedTransform( tf::Transform::getIdentity(), ros::Time::now(), camera_frame_id, imu_frame_id_);
+            imu_to_camera_transform_ = tf::StampedTransform( tf::Transform::getIdentity(), ros::Time::now(), imu_frame_id_, camera_frame_id);
         }   
     }
 
@@ -207,8 +210,8 @@ void InEKF_ROS::subscribe() {
     // Subscribe to Landmark publisher
     if (enable_landmarks_) {
         ROS_INFO("Subscribing to %s.", landmarks_topic.c_str());
-        landmarks_sub_ = n_.subscribe(landmarks_topic, 1000, &InEKF_ROS::landmarkCallback, this);
-        // landmarks_sub_ = n_.subscribe(landmarks_topic, 1000, &InEKF_ROS::aprilTagCallback, this);
+        // landmarks_sub_ = n_.subscribe(landmarks_topic, 1000, &InEKF_ROS::landmarkCallback, this);
+        landmarks_sub_ = n_.subscribe(landmarks_topic, 1000, &InEKF_ROS::aprilTagCallback, this);
     }
 
     // Subscribe to Kinematics and Contact publishers
@@ -231,24 +234,24 @@ void InEKF_ROS::imuCallback(const sensor_msgs::Imu::ConstPtr& msg) {
 }
 
 // Landmark Callback function
-void InEKF_ROS::aprilTagCallback(const apriltag_msgs::AprilTagDetectionArray::ConstPtr& msg) {
+void InEKF_ROS::aprilTagCallback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr& msg) {
     // Convert from apriltag_msg to landmark
     if (msg->detections.size() == 0) return;
     inekf_msgs::LandmarkArray::Ptr msg2(new inekf_msgs::LandmarkArray);
     msg2->header = msg->detections[0].pose.header;
     for (auto it=msg->detections.begin(); it!=msg->detections.end(); ++it) {
         inekf_msgs::Landmark landmark;
-        landmark.id = it->id;
-        landmark.position = it->pose.pose.position;
+        landmark.id = it->id[0];
+        landmark.position = it->pose.pose.pose.position;
         msg2->landmarks.push_back(landmark);
     }
-    shared_ptr<Measurement> ptr(new LandmarkMeasurement(msg2, camera_to_imu_transform_));
+    shared_ptr<Measurement> ptr(new LandmarkMeasurement(msg2, imu_to_camera_transform_));
     m_queue_.push(ptr);
 }
 
 // Landmark Callback function
 void InEKF_ROS::landmarkCallback(const inekf_msgs::LandmarkArray::ConstPtr& msg) {
-    shared_ptr<Measurement> ptr(new LandmarkMeasurement(msg, camera_to_imu_transform_));
+    shared_ptr<Measurement> ptr(new LandmarkMeasurement(msg, imu_to_camera_transform_));
     m_queue_.push(ptr);
 }
 
@@ -462,8 +465,8 @@ void InEKF_ROS::outputPublishingThread() {
     tf::TransformListener listener;
     tf::StampedTransform imu_to_base_transform;
     try {
-        listener.waitForTransform(base_frame_id, imu_frame_id_, ros::Time(0), ros::Duration(10.0) );
-        listener.lookupTransform(base_frame_id, imu_frame_id_, ros::Time(0), imu_to_base_transform);
+        listener.waitForTransform(imu_frame_id_, base_frame_id, ros::Time(0), ros::Duration(10.0) );
+        listener.lookupTransform(imu_frame_id_, base_frame_id, ros::Time(0), imu_to_base_transform);
         ROS_INFO("Tranform between frames %s and %s was found.", imu_frame_id_.c_str(), base_frame_id.c_str());
     } catch (tf::TransformException ex) {
         ROS_ERROR("%s. Using identity transform.",ex.what());
@@ -498,7 +501,7 @@ void InEKF_ROS::outputPublishingThread() {
         tf::Transform imu_pose;
         imu_pose.setRotation( tf::Quaternion(orientation.x(),orientation.y(),orientation.z(),orientation.w()) );
         imu_pose.setOrigin( tf::Vector3(position(0),position(1),position(2)) );
-        tf::Transform base_pose = imu_to_base_transform*imu_pose;
+        tf::Transform base_pose = imu_pose*imu_to_base_transform;
         tf::Quaternion base_orientation = base_pose.getRotation().normalize();
         tf::Vector3 base_position = base_pose.getOrigin();  
         // Construct message

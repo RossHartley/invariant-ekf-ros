@@ -1,0 +1,24 @@
+<launch>
+
+  <!-- Run Invariant EKF -->
+  <node name="inekf" pkg="inekf_ros" type="inekf_node" output="screen">
+    <rosparam file="$(find inekf_ros)/config/settings_multisense.yaml" command="load" />
+    <rosparam file="$(find inekf_ros)/config/noise.yaml" command="load" />
+    <rosparam file="$(find inekf_ros)/config/prior.yaml" command="load" />
+  </node>
+
+    <!-- Apriltag node -->
+	<!--<node pkg="apriltag2ROS" type="apriltag2_pub" name="apriltag2_pub" />-->
+
+  <!-- Create data publisher-->
+  <!-- <node name="data_file_publisher" pkg="inekf_ros" type="data_file_publisher_node" >
+    <param name="data_file" type="string" value="$(find inekf_ros)/data/imu_landmark_kinematic_measurements.txt" />
+  </node> -->
+  
+  <!--<node pkg="rosbag" type="play" name="player" args="clock /mnt/c/Users/Ross\ Hartley/Documents/GitHub/personal/bagfiles/2018-09-20-11-03-09.bag"/>-->
+
+  <!-- Rviz -->
+  <!-- <node type="rviz" name="rviz" pkg="rviz" args="-d $(find inekf_ros)/rviz/config.rviz" /> -->
+  <node type="rviz" name="rviz" pkg="rviz" args="-d /mnt/c/Users/Ross\ Hartley/Documents/GitHub/personal/catkin_ws/src/invariant-ekf_ros/inekf_ros/rviz/config.rviz" />
+
+</launch>

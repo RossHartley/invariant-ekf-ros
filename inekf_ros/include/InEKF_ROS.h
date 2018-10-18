@@ -29,11 +29,11 @@
 #include "Queue.h"
 #include "inekf_msgs/State.h"
 #include "visualization_msgs/MarkerArray.h"
-#include "apriltag_msgs/AprilTagDetectionArray.h"
+#include "apriltags2_ros/AprilTagDetectionArray.h"
 #include <mutex>
 
-#define QUEUE_BUFFER_SIZE 100
-#define MAX_QUEUE_SIZE 150
+#define QUEUE_BUFFER_SIZE 50
+#define MAX_QUEUE_SIZE 100
 
 
 class InEKF_ROS {
@@ -58,7 +58,7 @@ class InEKF_ROS {
         bool publish_visualization_markers_;
         ros::Publisher visualization_pub_;
         bool enable_landmarks_;
-        tf::StampedTransform camera_to_imu_transform_;
+        tf::StampedTransform imu_to_camera_transform_;
         bool enable_kinematics_;
 
         void subscribe();
@@ -66,7 +66,7 @@ class InEKF_ROS {
         void outputPublishingThread();
         void imuCallback(const sensor_msgs::Imu::ConstPtr& msg); 
         void landmarkCallback(const inekf_msgs::LandmarkArray::ConstPtr& msg);
-        void aprilTagCallback(const apriltag_msgs::AprilTagDetectionArray::ConstPtr& msg);
+        void aprilTagCallback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr& msg);
         void kinematicsCallback(const inekf_msgs::KinematicsArray::ConstPtr& msg);
         void contactCallback(const inekf_msgs::ContactArray::ConstPtr& msg);
 

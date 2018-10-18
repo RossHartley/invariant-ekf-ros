@@ -1,0 +1,11 @@
+settings:
+  imu_topic: "/multisense/imu/imu_data"
+  map_frame_id : "/map"
+  base_frame_id: "/multisense/head"
+  publish_rate: 200.0
+  pose_topic: "/pose"
+  state_topic: "/state"
+  publish_visualization_markers: true
+  visualization_markers_topic: "/markers"
+  enable_landmarks: true
+  landmarks_topic: "/tag_detections"

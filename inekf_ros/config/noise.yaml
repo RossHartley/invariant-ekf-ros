@@ -1,6 +1,6 @@
 noise:
-  gyroscope_std: 0.01
-  accelerometer_std: 0.1
+  gyroscope_std: 0.05
+  accelerometer_std: 0.5
   gyroscope_bias_std: 0.00001
   accelerometer_bias_std: 0.0001
   landmark_std: 0.1
