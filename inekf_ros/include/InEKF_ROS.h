@@ -29,7 +29,7 @@
 #include "Queue.h"
 #include "inekf_msgs/State.h"
 #include "visualization_msgs/MarkerArray.h"
-#include "apriltags2_ros/AprilTagDetectionArray.h"
+// #include "apriltags2_ros/AprilTagDetectionArray.h"
 #include <mutex>
 
 #define QUEUE_BUFFER_SIZE 50
@@ -66,7 +66,7 @@ class InEKF_ROS {
         void outputPublishingThread();
         void imuCallback(const sensor_msgs::Imu::ConstPtr& msg); 
         void landmarkCallback(const inekf_msgs::LandmarkArray::ConstPtr& msg);
-        void aprilTagCallback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr& msg);
+        // void aprilTagCallback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr& msg);
         void kinematicsCallback(const inekf_msgs::KinematicsArray::ConstPtr& msg);
         void contactCallback(const inekf_msgs::ContactArray::ConstPtr& msg);
 

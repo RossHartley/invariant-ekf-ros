@@ -18,7 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   sensor_msgs
   inekf_msgs
-  apriltags2_ros
+#   apriltags2_ros
   tf
 )
 
