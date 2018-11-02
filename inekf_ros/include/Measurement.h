@@ -56,9 +56,11 @@ class ImuMeasurement : public Measurement {
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         ImuMeasurement(const sensor_msgs::Imu::ConstPtr& msg);
         Eigen::VectorXd getData();
+        Eigen::Matrix3d getRotation();
 
     private: 
         Eigen::Matrix<double,6,1> data_;
+        Eigen::Matrix3d R_;
 };
 
 

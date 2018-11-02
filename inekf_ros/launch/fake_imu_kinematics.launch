@@ -26,8 +26,7 @@
   </node>
 
   <!-- roscd removes spaces in path name which casues the following to not work -->
-  <!-- <node type="rviz" name="rviz" pkg="rviz" args="-d `rospack find inekf_ros`/rviz/config.rviz" /> -->
-  <node type="rviz" name="rviz" pkg="rviz" args="-d /mnt/c/Users/Ross\ Hartley/Documents/GitHub/personal/catkin_ws/src/invariant-ekf_ros/inekf_ros/rviz/config.rviz" />
+  <node type="rviz" name="rviz" pkg="rviz" args="-d `rospack find inekf_ros`/rviz/config.rviz" />
 
 
 </launch>

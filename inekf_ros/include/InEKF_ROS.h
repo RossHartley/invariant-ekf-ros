@@ -29,11 +29,10 @@
 #include "Queue.h"
 #include "inekf_msgs/State.h"
 #include "visualization_msgs/MarkerArray.h"
-// #include "apriltags2_ros/AprilTagDetectionArray.h"
 #include <mutex>
 
-#define QUEUE_BUFFER_SIZE 50
-#define MAX_QUEUE_SIZE 100
+#define QUEUE_BUFFER_SIZE 1
+#define MAX_QUEUE_SIZE 50
 
 
 class InEKF_ROS {
@@ -49,29 +48,55 @@ class InEKF_ROS {
         ros::Subscriber landmarks_sub_;
         ros::Subscriber kinematics_sub_;
         ros::Subscriber contact_sub_;
+
+        uint32_t seq_ = 0;
+        ros::Publisher pose_pub_;
+        ros::Publisher state_pub_;
+        ros::Publisher visualization_pub_;
+        tf::TransformBroadcaster tf_broadcaster_;
+
         std::thread filtering_thread_;
-        std::thread output_thread_;
         Queue<std::shared_ptr<Measurement>, std::vector<std::shared_ptr<Measurement>>, MeasurementCompare> m_queue_;
 
+        std::string base_frame_id_;
         std::string imu_frame_id_;
         std::string map_frame_id_;
-        bool publish_visualization_markers_;
-        ros::Publisher visualization_pub_;
+        
         bool enable_landmarks_;
-        tf::StampedTransform imu_to_camera_transform_;
         bool enable_kinematics_;
+        bool publish_visualization_markers_;
+        bool enabled_;
+        bool bias_initialized_;
+        bool initialize_state_from_first_observation_;
+        bool static_bias_initialization_;
 
+        geometry_msgs::Point point_prev_;    
+        tf::StampedTransform imu_to_base_transform_;
+        tf::StampedTransform imu_to_camera_transform_;
+
+        double t_;
+        double t_prev_;
+        std::shared_ptr<ImuMeasurement> imu_prev_;
+        Eigen::Vector3d bg0_ = Eigen::Vector3d::Zero();
+        Eigen::Vector3d ba0_ = Eigen::Vector3d::Zero();
+
+        bool enabled();
+        bool biasInitialized();
         void subscribe();
+        void initBias();
+        void initState();
+        void update();
         void mainFilteringThread();
-        void outputPublishingThread();
+
         void imuCallback(const sensor_msgs::Imu::ConstPtr& msg); 
         void landmarkCallback(const inekf_msgs::LandmarkArray::ConstPtr& msg);
-        // void aprilTagCallback(const apriltags2_ros::AprilTagDetectionArray::ConstPtr& msg);
         void kinematicsCallback(const inekf_msgs::KinematicsArray::ConstPtr& msg);
         void contactCallback(const inekf_msgs::ContactArray::ConstPtr& msg);
 
+        void publish();
         void publishLandmarkMeasurementMarkers(std::shared_ptr<LandmarkMeasurement> ptr);
         void publishKinematicMeasurementMarkers(std::shared_ptr<KinematicMeasurement> ptr);
+
 };
 
 #endif 

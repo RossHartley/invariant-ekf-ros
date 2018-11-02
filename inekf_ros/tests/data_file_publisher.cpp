@@ -65,8 +65,8 @@ int main(int argc, char **argv) {
             msg.header.seq = seq;
             msg.header.stamp = ros::Time(t);
             msg.header.frame_id = "/imu"; 
-            msg.orientation.w = 1;
-            msg.orientation.x = 0;
+            msg.orientation.w = 0;
+            msg.orientation.x = 1;
             msg.orientation.y = 0;
             msg.orientation.z = 0;
             msg.angular_velocity.x = stod(measurement[2]);

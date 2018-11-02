@@ -33,9 +33,12 @@ ImuMeasurement::ImuMeasurement(const sensor_msgs::Imu::ConstPtr& msg) {
              msg->linear_acceleration.x, 
              msg->linear_acceleration.y, 
              msg->linear_acceleration.z;
+    Eigen::Quaternion<double> q(msg->orientation.w,msg->orientation.x,msg->orientation.y,msg->orientation.z);
+    R_ = q.toRotationMatrix();
     type_ = IMU;
 }
 Eigen::VectorXd ImuMeasurement::getData() { return data_; }
+Eigen::Matrix3d ImuMeasurement::getRotation() { return R_; }
 
 // Construct Landmark measurement
 LandmarkMeasurement::LandmarkMeasurement(const inekf_msgs::LandmarkArray::ConstPtr& msg, const tf::StampedTransform& transform){
