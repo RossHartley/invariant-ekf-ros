@@ -58,6 +58,17 @@ void InEKF_ROS::init() {
     cout << "Noise parameters are set to: \n";
     cout << filter_.getNoiseParams() << endl;
 
+    // Set inital IMU bias (static_bias_initialization flag with overwrite)
+    vector<double> param_vec;
+    if (nh.getParam("prior/gyroscope_bias", param_vec)) { 
+        ROS_ASSERT(param_vec.size() == 3);
+        bg0_ << param_vec[0], param_vec[1], param_vec[2];
+    }
+    if (nh.getParam("prior/accelerometer_bias", param_vec)) { 
+        ROS_ASSERT(param_vec.size() == 3);
+        ba0_ << param_vec[0], param_vec[1], param_vec[2];
+    }
+
     // Set prior landmarks if given
     mapIntVector3d prior_landmarks;
     XmlRpc::XmlRpcValue list;
@@ -78,6 +89,7 @@ void InEKF_ROS::init() {
         }
     }
     filter_.setPriorLandmarks(prior_landmarks);
+
 
 
     // -----  Settings --------
@@ -115,14 +127,12 @@ void InEKF_ROS::initState() {
     Eigen::Matrix3d R_init = Eigen::Matrix3d::Identity();
     Eigen::Vector3d v_init = Eigen::Vector3d::Zero();
     Eigen::Vector3d p_init = Eigen::Vector3d::Zero();
-    Eigen::Vector3d bg_init = Eigen::Vector3d::Zero();
-    Eigen::Vector3d ba_init = Eigen::Vector3d::Zero();
     shared_ptr<Measurement> m_ptr;
 
 
     if (initialize_state_from_first_observation_) {
         // TODO (landmark initialization)
-        ROS_INFO("Initializing from first observation");
+        ROS_INFO("Waiting for first observation to initialize state.");
 
         // --- Initialize orientation from IMU -----
         // Block until first IMU measurement is received
@@ -197,15 +207,8 @@ void InEKF_ROS::initState() {
             ROS_ASSERT(param_vec.size() == 3);
             p_init << param_vec[0], param_vec[1], param_vec[2];
         }
-        if (nh.getParam("prior/gyroscope_bias", param_vec)) { 
-            ROS_ASSERT(param_vec.size() == 3);
-            bg_init << param_vec[0], param_vec[1], param_vec[2];
-        }
-        if (nh.getParam("prior/accelerometer_bias", param_vec)) { 
-            ROS_ASSERT(param_vec.size() == 3);
-            ba_init << param_vec[0], param_vec[1], param_vec[2];
-        }
     }
+
 
     // Set Initial Covariance
     double std;
@@ -224,13 +227,13 @@ void InEKF_ROS::initState() {
     if (nh.getParam("prior/accelerometer_bias_std", std)) { 
         state.setAccelerometerBiasCovariance(std*std*Eigen::Matrix3d::Identity());
     }
-
+  
     // Set initial state information
     state.setRotation(R_init);
     state.setVelocity(v_init);
     state.setPosition(p_init);
-    state.setGyroscopeBias(bg_init);
-    state.setAccelerometerBias(ba_init);
+    state.setGyroscopeBias(bg0_);
+    state.setAccelerometerBias(ba0_);
     filter_.setState(state);
 
     // Print out initialization
@@ -446,33 +449,38 @@ void InEKF_ROS::update() {
 
     // Throw warning if measurement queue is getting too large
     if (m_queue_.size() > MAX_QUEUE_SIZE) {
-        ROS_WARN("Measurement queue size (%d) is greater than MAX_QUEUE_SIZE. Filter is not running realtime!", m_queue_.size());
+        // ROS_WARN("Measurement queue size (%d) is greater than MAX_QUEUE_SIZE. Filter is not running realtime!", m_queue_.size());
     }   
     // Wait until buffer is full
     while(m_queue_.size() < QUEUE_BUFFER_SIZE) {
         this_thread::sleep_for(chrono::microseconds(1));
-    }
-    // Retrieve next measurement (Blocking)
+    }    
+    // Retrieve next measurement (Blocking)   
     m_queue_.pop(m_ptr);
-    ROS_DEBUG("Time: %f", m_ptr->getTime());
+    ROS_DEBUG("Time: %f", m_ptr->getTime());  
     // Handle measurement
-    switch (m_ptr->getType()) {
+    switch (m_ptr->getType()) {  
         case IMU: {
             ROS_DEBUG("Propagating state with IMU measurements.");
             auto imu = dynamic_pointer_cast<ImuMeasurement>(m_ptr);
             t_ = imu->getTime();
-            filter_.Propagate(imu->getData(), t_- t_prev_);
-            t_prev_ = t_;
-            imu_prev_ = imu;
-            break;
+            dt_ = t_ - t_prev_;
+            if (dt_ > 0.1) {
+                ROS_ERROR("TIMESTEP WAY TOO LARGE, IGNORE: %f", dt_);
+            } else {
+                filter_.Propagate(imu->getData(), dt_);
+            }     
+            t_prev_ = t_; 
+            imu_prev_ = imu; 
+            break;  
         }
-        case LANDMARK: {
+        case LANDMARK: {  
             ROS_DEBUG("Correcting state with LANDMARK measurements.");
-            auto landmarks = dynamic_pointer_cast<LandmarkMeasurement>(m_ptr);
+            auto landmarks = dynamic_pointer_cast<LandmarkMeasurement>(m_ptr); 
             filter_.CorrectLandmarks(landmarks->getData());
-            if (publish_visualization_markers_) {
-                this->publishLandmarkMeasurementMarkers(landmarks);
-            }
+            if (publish_visualization_markers_) { 
+                this->publishLandmarkMeasurementMarkers(landmarks); 
+            }  
             break;
         }
         case KINEMATIC: {
@@ -481,16 +489,30 @@ void InEKF_ROS::update() {
             filter_.CorrectKinematics(kinematics->getData());
             if (publish_visualization_markers_) {
                 this->publishKinematicMeasurementMarkers(kinematics);
-            }
+            }  
             break;
-        }
+        }  
         case CONTACT: {
             ROS_DEBUG("Setting filter's contact state with CONTACT measurements.");
             auto contacts = dynamic_pointer_cast<ContactMeasurement>(m_ptr);
             filter_.setContacts(contacts->getData());
+            // Test abosulte positon contact measurement (z)
+            // vector<pair<int,bool>> contacts_vec = contacts->getData();
+            // vector<pair<int,double>> contacts_position_z;  
+            // for (int i=0; i<contacts_vec.size(); ++i){
+            //     if (contacts_vec[i].second == true) {
+            //         contacts_position_z.push_back(pair<int,double> (contacts_vec[i].first, 0));
+            //     }
+            // }
+            // if (contacts_position_z.size() > 0) {
+                // cout << filter_.getState().getP() << endl;
+                // this_thread::sleep_for(chrono::milliseconds(500));
+                // cout << "contacts_position_z.size(): " << contacts_position_z.size() << endl;
+            //     filter_.CorrectContactPositionZ(contacts_position_z);
+            // }
             break;
         }
-        default:
+        default:   
             ROS_ERROR("Unknown measurement, skipping...");
     }
 }
@@ -544,7 +566,7 @@ void InEKF_ROS::publishLandmarkMeasurementMarkers(shared_ptr<LandmarkMeasurement
             landmark_point.y = X(1,search_estimated->second);
             landmark_point.z = X(2,search_estimated->second);
             landmark_measurement_msg.points.push_back(base_point);
-            landmark_measurement_msg.points.push_back(landmark_point);
+            landmark_measurement_msg.points.push_back(landmark_point);  
             continue;
         }
     }
@@ -629,12 +651,12 @@ void InEKF_ROS::publish() {
     pose_msg.pose.pose.position.z = base_position.getZ(); 
     pose_msg.pose.pose.orientation.w = base_orientation.getW();
     pose_msg.pose.pose.orientation.x = base_orientation.getX();
-    pose_msg.pose.pose.orientation.y = base_orientation.getY();
+    pose_msg.pose.pose.orientation.y = base_orientation.getY();  
     pose_msg.pose.pose.orientation.z = base_orientation.getZ();
     Eigen::Matrix<double,6,6> P_pose; // TODO: convert covariance from imu to body frame (adjoint?)
     P_pose.block<3,3>(0,0) = P.block<3,3>(0,0);
     P_pose.block<3,3>(0,3) = P.block<3,3>(0,6);
-    P_pose.block<3,3>(3,0) = P.block<3,3>(6,0);
+    P_pose.block<3,3>(3,0) = P.block<3,3>(6,0);   
     P_pose.block<3,3>(3,3) = P.block<3,3>(6,6);
     for (int i=0; i<36; ++i) {
         pose_msg.pose.covariance[i] = P_pose(i);
@@ -651,7 +673,7 @@ void InEKF_ROS::publish() {
     state_msg.header.frame_id = map_frame_id_; 
     state_msg.pose = pose_msg.pose.pose;
     Eigen::Vector3d velocity = state.getVelocity();
-    state_msg.velocity.x = velocity(0); 
+    state_msg.velocity.x = velocity(0);   
     state_msg.velocity.y = velocity(1); 
     state_msg.velocity.z = velocity(2); 
     map<int,int> estimated_landmarks = filter_.getEstimatedLandmarks();
@@ -702,7 +724,7 @@ void InEKF_ROS::publish() {
             marker.color.r = 0.0;
             marker.color.g = 1.0;
             marker.color.b = 1.0;
-            marker.lifetime = ros::Duration(t_-t_prev_);
+            marker.lifetime = ros::Duration(dt_);
             markers_msg.markers.push_back(marker);
         }
 
@@ -729,8 +751,8 @@ void InEKF_ROS::publish() {
             marker.color.a = 1.0; // Don't forget to set the alpha!
             marker.color.r = 0.0;
             marker.color.g = 1.0;
-            marker.color.b = 0.0;
-            marker.lifetime = ros::Duration(t_-t_prev_);
+            marker.color.b = 0.0; 
+            marker.lifetime = ros::Duration(dt_);
             markers_msg.markers.push_back(marker);
         }        
 
@@ -752,14 +774,22 @@ void InEKF_ROS::publish() {
             marker.pose.orientation.y = 0.0;
             marker.pose.orientation.z = 0.0;
             marker.pose.orientation.w = 1.0;
-            marker.scale.x = sqrt(P(3+3*(it->second-3),3+3*(it->second-3)));
-            marker.scale.y = sqrt(P(4+3*(it->second-3),4+3*(it->second-3)));
-            marker.scale.z = sqrt(P(5+3*(it->second-3),5+3*(it->second-3)));
+            // b_p_bc = Rwb'*(w_p_wc - w_p_wb)
+            //        = R'*(d-p)
+            //        = X^{-1}*[0;0;0;1;-1]  
+            // This is probably not correct!!!!!
+            Eigen::Matrix3d Pc = X.block<3,3>(0,0) * (P.block<3,3>(3+3*(it->second-3),3+3*(it->second-3)) - P.block<3,3>(6,6)) * X.block<3,3>(0,0).transpose();
+            marker.scale.x = sqrt(Pc(0,0));
+            marker.scale.y = sqrt(Pc(1,1));
+            marker.scale.z = sqrt(Pc(2,2));
+            // marker.scale.x = sqrt(P(3+3*(it->second-3),3+3*(it->second-3)));
+            // marker.scale.y = sqrt(P(4+3*(it->second-3),4+3*(it->second-3)));
+            // marker.scale.z = sqrt(P(5+3*(it->second-3),5+3*(it->second-3)));
             marker.color.a = 1.0; // Don't forget to set the alpha!
             marker.color.r = 0.0;
             marker.color.g = 1.0;
             marker.color.b = 0.0;
-            marker.lifetime = ros::Duration(t_-t_prev_);
+            marker.lifetime = ros::Duration(dt_);
             markers_msg.markers.push_back(marker);
         }
 

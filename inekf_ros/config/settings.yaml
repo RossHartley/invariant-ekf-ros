@@ -4,7 +4,6 @@ settings:
   imu_topic: "/imu"
   map_frame_id : "/map"
   base_frame_id: "/imu"
-  publish_rate: 200.0
   pose_topic: "/pose"
   state_topic: "/state"
   publish_visualization_markers: true

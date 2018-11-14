@@ -32,7 +32,7 @@
 #include <mutex>
 
 #define QUEUE_BUFFER_SIZE 1
-#define MAX_QUEUE_SIZE 50
+#define MAX_QUEUE_SIZE 1
 
 
 class InEKF_ROS {
@@ -75,6 +75,7 @@ class InEKF_ROS {
         tf::StampedTransform imu_to_camera_transform_;
 
         double t_;
+        double dt_;
         double t_prev_;
         std::shared_ptr<ImuMeasurement> imu_prev_;
         Eigen::Vector3d bg0_ = Eigen::Vector3d::Zero();

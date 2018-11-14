@@ -77,7 +77,7 @@ KinematicMeasurement::KinematicMeasurement(const inekf_msgs::KinematicsArray::Co
         pose(0,3) = it->pose.pose.position.x;
         pose(1,3) = it->pose.pose.position.y;
         pose(2,3) = it->pose.pose.position.z;
-        Eigen::Matrix<double,6,6> covariance;
+        Eigen::Matrix<double,6,6> covariance; // TODO: account for difference between ROS covariance format (position first)
         for (int i=0; i<6; ++i) {
             for (int j=0; j<6; ++j) {
                 covariance(i,j) = it->pose.covariance[6*i+j]; // Assume row-major
