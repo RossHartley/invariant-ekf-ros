@@ -467,7 +467,7 @@ void InEKF_ROS::update() {
             dt_ = t_ - t_prev_;
             if (dt_ > 0.1) {
                 ROS_ERROR("TIMESTEP WAY TOO LARGE, IGNORE: %f", dt_);
-            } else {
+            } else {  
                 filter_.Propagate(imu->getData(), dt_);
             }     
             t_prev_ = t_; 
@@ -496,7 +496,7 @@ void InEKF_ROS::update() {
             ROS_DEBUG("Setting filter's contact state with CONTACT measurements.");
             auto contacts = dynamic_pointer_cast<ContactMeasurement>(m_ptr);
             filter_.setContacts(contacts->getData());
-            // Test abosulte positon contact measurement (z)
+            // // Test abosulte positon contact measurement (z)
             // vector<pair<int,bool>> contacts_vec = contacts->getData();
             // vector<pair<int,double>> contacts_position_z;  
             // for (int i=0; i<contacts_vec.size(); ++i){
@@ -505,9 +505,9 @@ void InEKF_ROS::update() {
             //     }
             // }
             // if (contacts_position_z.size() > 0) {
-                // cout << filter_.getState().getP() << endl;
-                // this_thread::sleep_for(chrono::milliseconds(500));
-                // cout << "contacts_position_z.size(): " << contacts_position_z.size() << endl;
+            //     // cout << filter_.getState().getP() << endl;
+            //     // this_thread::sleep_for(chrono::milliseconds(500));
+            //     // cout << "contacts_position_z.size(): " << contacts_position_z.size() << endl;
             //     filter_.CorrectContactPositionZ(contacts_position_z);
             // }
             break;
@@ -629,15 +629,19 @@ void InEKF_ROS::publish() {
     RobotState state = filter_.getState();
     Eigen::MatrixXd X = state.getX();
     Eigen::MatrixXd P = state.getP();
+    Eigen::Quaternion<double> orientation(state.getRotation());
+    orientation.normalize();
+    Eigen::Vector3d position = state.getPosition();
+    Eigen::Vector3d velocity = state.getVelocity();
+    Eigen::Vector3d bg = state.getGyroscopeBias();
+    Eigen::Vector3d ba = state.getAccelerometerBias();
 
     // Create and send pose message
     geometry_msgs::PoseWithCovarianceStamped pose_msg;
     pose_msg.header.seq = seq_;
     pose_msg.header.stamp = ros::Time(t_);
     pose_msg.header.frame_id = map_frame_id_; 
-    Eigen::Vector3d position = state.getPosition();
-    Eigen::Quaternion<double> orientation(state.getRotation());
-    orientation.normalize();
+
     // Transform from imu frame to base frame
     tf::Transform imu_pose;
     imu_pose.setRotation( tf::Quaternion(orientation.x(),orientation.y(),orientation.z(),orientation.w()) );
@@ -653,14 +657,7 @@ void InEKF_ROS::publish() {
     pose_msg.pose.pose.orientation.x = base_orientation.getX();
     pose_msg.pose.pose.orientation.y = base_orientation.getY();  
     pose_msg.pose.pose.orientation.z = base_orientation.getZ();
-    Eigen::Matrix<double,6,6> P_pose; // TODO: convert covariance from imu to body frame (adjoint?)
-    P_pose.block<3,3>(0,0) = P.block<3,3>(0,0);
-    P_pose.block<3,3>(0,3) = P.block<3,3>(0,6);
-    P_pose.block<3,3>(3,0) = P.block<3,3>(6,0);   
-    P_pose.block<3,3>(3,3) = P.block<3,3>(6,6);
-    for (int i=0; i<36; ++i) {
-        pose_msg.pose.covariance[i] = P_pose(i);
-    }
+    // TODO: Need to compute and fill in covariance of base
     pose_pub_.publish(pose_msg);
 
     // Create and send tf message
@@ -671,25 +668,42 @@ void InEKF_ROS::publish() {
     state_msg.header.seq = seq_;
     state_msg.header.stamp = ros::Time(t_);
     state_msg.header.frame_id = map_frame_id_; 
-    state_msg.pose = pose_msg.pose.pose;
-    Eigen::Vector3d velocity = state.getVelocity();
+    state_msg.orientation.w = orientation.w();
+    state_msg.orientation.x = orientation.x();
+    state_msg.orientation.y = orientation.y();  
+    state_msg.orientation.z = orientation.z();
+    state_msg.position.x = position(0); 
+    state_msg.position.y = position(1); 
+    state_msg.position.z = position(2); 
     state_msg.velocity.x = velocity(0);   
     state_msg.velocity.y = velocity(1); 
     state_msg.velocity.z = velocity(2); 
+    for (int i=0; i<9; ++i) {
+        for (int j=0; j<9; ++j) {
+            state_msg.covariance[9*i+j] = P(i,j);
+        }
+    }
     map<int,int> estimated_landmarks = filter_.getEstimatedLandmarks();
     for (auto it=estimated_landmarks.begin(); it!=estimated_landmarks.end(); ++it) {
-        inekf_msgs::Landmark landmark;
+        inekf_msgs::VectorWithId landmark;
         landmark.id = it->first;
         landmark.position.x = X(0,it->second);
         landmark.position.y = X(1,it->second);
         landmark.position.z = X(2,it->second);
         state_msg.landmarks.push_back(landmark);
     }
-    Eigen::Vector3d bg = state.getGyroscopeBias();
+    map<int,int> estimated_contacts = filter_.getEstimatedContactPositions();
+    for (auto it=estimated_contacts.begin(); it!=estimated_contacts.end(); ++it) {
+        inekf_msgs::VectorWithId contact;
+        contact.id = it->first;
+        contact.position.x = X(0,it->second);
+        contact.position.y = X(1,it->second);
+        contact.position.z = X(2,it->second);
+        state_msg.contacts.push_back(contact);
+    }
     state_msg.gyroscope_bias.x = bg(0); 
     state_msg.gyroscope_bias.y = bg(1); 
     state_msg.gyroscope_bias.z = bg(2); 
-    Eigen::Vector3d ba = state.getAccelerometerBias();
     state_msg.accelerometer_bias.x = ba(0); 
     state_msg.accelerometer_bias.y = ba(1); 
     state_msg.accelerometer_bias.z = ba(2); 

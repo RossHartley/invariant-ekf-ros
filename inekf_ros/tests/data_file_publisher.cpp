@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
             msg.header.stamp = ros::Time(t);
             msg.header.frame_id = "/imu"; 
             for (int i=2; i<measurement.size(); i+=4) {
-                inekf_msgs::Landmark landmark;
+                inekf_msgs::VectorWithId landmark;
                 landmark.id = stoi(measurement[i]);
                 landmark.position.x = stod(measurement[i+1]);
                 landmark.position.y = stod(measurement[i+2]);

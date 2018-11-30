@@ -6,18 +6,18 @@ project(inekf_msgs)
 
 find_package(
     catkin REQUIRED COMPONENTS
-    message_generation
+    message_generation  
+    std_msgs
     geometry_msgs
 )
 
-add_message_files(
+add_message_files(  
     FILES
     Contact.msg
     ContactArray.msg
     Kinematics.msg
     KinematicsArray.msg
-    Landmark.msg
-    LandmarkStamped.msg
+    VectorWithId.msg
     LandmarkArray.msg
     State.msg
 )
@@ -29,3 +29,4 @@ generate_messages(
 catkin_package(
     CATKIN_DEPENDS message_runtime
 )
+     
