@@ -31,8 +31,8 @@
 #include "visualization_msgs/MarkerArray.h"
 #include <mutex>
 
-#define QUEUE_BUFFER_SIZE 1
-#define MAX_QUEUE_SIZE 1
+#define QUEUE_BUFFER_SIZE 50
+#define MAX_QUEUE_SIZE 200
 
 
 class InEKF_ROS {
@@ -80,6 +80,11 @@ class InEKF_ROS {
         std::shared_ptr<ImuMeasurement> imu_prev_;
         Eigen::Vector3d bg0_ = Eigen::Vector3d::Zero();
         Eigen::Vector3d ba0_ = Eigen::Vector3d::Zero();
+
+        Eigen::Matrix3d observation_covariance_landmark_ = Eigen::Matrix3d::Identity();
+        Eigen::Matrix3d observation_covariance_magnetometer_ = Eigen::Matrix3d::Identity();
+        Eigen::Matrix3d observation_covariance_position_ = Eigen::Matrix3d::Identity();
+        Eigen::Matrix3d observation_covariance_contact_position_ = Eigen::Matrix3d::Identity();
 
         bool enabled();
         bool biasInitialized();

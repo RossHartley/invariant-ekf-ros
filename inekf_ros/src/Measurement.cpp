@@ -41,7 +41,7 @@ Eigen::VectorXd ImuMeasurement::getData() { return data_; }
 Eigen::Matrix3d ImuMeasurement::getRotation() { return R_; }
 
 // Construct Landmark measurement
-LandmarkMeasurement::LandmarkMeasurement(const inekf_msgs::LandmarkArray::ConstPtr& msg, const tf::StampedTransform& transform){
+LandmarkMeasurement::LandmarkMeasurement(const inekf_msgs::LandmarkArray::ConstPtr& msg, const tf::StampedTransform& transform, const Eigen::Matrix3d& covariance){
     t_ = msg->header.stamp.toSec();
     type_ = LANDMARK;
     for (auto it=msg->landmarks.begin(); it!=msg->landmarks.end(); ++it) {
@@ -49,7 +49,7 @@ LandmarkMeasurement::LandmarkMeasurement(const inekf_msgs::LandmarkArray::ConstP
         tf::Vector3 p_bl = transform*p_cl; // Transform measurement from camera frame to imu frame
         Eigen::Vector3d position;
         position << p_bl.getX(), p_bl.getY(), p_bl.getZ();
-        data_.push_back(Landmark(it->id, position)); 
+        data_.push_back(Landmark(it->id, position, covariance)); 
     }
 }
 vectorLandmarks LandmarkMeasurement::getData() { return data_; }; 

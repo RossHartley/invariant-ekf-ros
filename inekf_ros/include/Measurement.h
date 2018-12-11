@@ -68,7 +68,7 @@ class LandmarkMeasurement : public Measurement {
 
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-        LandmarkMeasurement(const inekf_msgs::LandmarkArray::ConstPtr& msg, const tf::StampedTransform& transform);
+        LandmarkMeasurement(const inekf_msgs::LandmarkArray::ConstPtr& msg, const tf::StampedTransform& transform, const Eigen::Matrix3d& covariance);
         inekf::vectorLandmarks getData();
 
     private:

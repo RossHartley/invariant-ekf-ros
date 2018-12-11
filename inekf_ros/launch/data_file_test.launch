@@ -1,7 +1,7 @@
 <launch>
 
   <!-- Run Invariant EKF -->
-  <node name="inekf" pkg="inekf_ros" type="inekf_node" output="screen">
+  <node name="inekf" pkg="inekf_ros" type="inekf_node" output="screen" >
     <rosparam file="$(find inekf_ros)/config/settings.yaml" command="load" />
     <rosparam file="$(find inekf_ros)/config/noise.yaml" command="load" />
     <rosparam file="$(find inekf_ros)/config/prior.yaml" command="load" />

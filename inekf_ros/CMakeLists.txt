@@ -7,6 +7,7 @@ project(inekf_ros)
 # add_compile_options(-DEIGEN_NO_DEBUG)
 # add_compile_options(-march=native)
 #set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_BUILD_TYPE "Debug")
 SET(CMAKE_CXX_COMPILER /usr/bin/g++)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O3 -DEIGEN_NO_DEBUG -march=native -Wl,--no-as-needed") 
 
