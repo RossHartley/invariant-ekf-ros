@@ -12,7 +12,6 @@
  **/
 
 #include "ros/ros.h"
-#include "inekf_msgs/Landmark.h"
 #include "inekf_msgs/LandmarkArray.h"
 #include <random>
 
