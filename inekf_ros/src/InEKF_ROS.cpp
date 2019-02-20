@@ -515,7 +515,7 @@ void InEKF_ROS::update() {
         default:     
             ROS_ERROR("Unknown measurement, skipping...");
     }
-    std::cout << filter_.getState() << std::endl;
+    // std::cout << filter_.getState() << std::endl;
 }
 
 
@@ -716,6 +716,52 @@ void InEKF_ROS::publish() {
     // Create and send markers for visualization
     if (publish_visualization_markers_) {
         visualization_msgs::MarkerArray markers_msg;
+
+        // Publish pose covariance samples
+        visualization_msgs::Marker marker_pose;
+        marker_pose.header.frame_id = map_frame_id_;
+        marker_pose.header.stamp = timestamp;
+        marker_pose.header.seq = seq_;
+        marker_pose.ns = "imu_pose";
+        marker_pose.id = 0;
+        marker_pose.type = visualization_msgs::Marker::POINTS;
+        marker_pose.action = visualization_msgs::Marker::ADD;
+        marker_pose.scale.x = 0.01;
+        marker_pose.scale.y = 0.01;
+        marker_pose.scale.z = 0.01;
+        marker_pose.color.a = 1.0; // Don't forget to set the alpha!
+        marker_pose.color.r = 0.0;
+        marker_pose.color.g = 1.0;
+        marker_pose.color.b = 0.0;
+        marker_pose.lifetime = ros::Duration(dt_);
+        // Sample N points in the lie algebra and project to the manifold
+        Eigen::Matrix<double,4,4> X_pose = Eigen::Matrix<double,4,4>::Identity();
+        X_pose.block<3,3>(0,0) = X.block<3,3>(0,0);
+        X_pose.block<3,1>(0,3) = X.block<3,1>(0,4);
+        Eigen::Matrix<double,6,6> P_pose;
+        P_pose.block<3,3>(0,0) = P.block<3,3>(0,0);
+        P_pose.block<3,3>(0,3) = P.block<3,3>(0,6);
+        P_pose.block<3,3>(3,0) = P.block<3,3>(6,0);
+        P_pose.block<3,3>(3,3) = P.block<3,3>(6,6);
+        Eigen::MatrixXd L( P_pose.llt().matrixL() );
+        std::default_random_engine generator;
+        std::normal_distribution<double> distribution(0,1);
+        const int N = 1000;
+        for (int i=0; i<N; ++i) {
+            Eigen::VectorXd xi;
+            xi.resize(6);
+            for (int j=0; j<6; ++j) {
+                xi(j) = distribution(generator);
+            }
+            xi = (L*xi).eval(); 
+            Eigen::Matrix<double,4,4> X_sample = inekf::Exp_SEK3(xi)*X_pose;
+            geometry_msgs::Point point;
+            point.x = X_sample(0,3);
+            point.y = X_sample(1,3);
+            point.z = X_sample(2,3);
+            marker_pose.points.push_back(point);
+        }
+        markers_msg.markers.push_back(marker_pose);
 
         // Add prior landmarks
         mapIntVector3d prior_landmarks = filter_.getPriorLandmarks();

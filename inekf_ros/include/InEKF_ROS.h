@@ -30,6 +30,7 @@
 #include "inekf_msgs/State.h"
 #include "visualization_msgs/MarkerArray.h"
 #include <mutex>
+#include <random>
 
 #define QUEUE_BUFFER_SIZE 50
 #define MAX_QUEUE_SIZE 200
