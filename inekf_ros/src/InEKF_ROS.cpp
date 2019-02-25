@@ -236,7 +236,17 @@ void InEKF_ROS::initState() {
     state.setPosition(p_init);
     state.setGyroscopeBias(bg0_);
     state.setAccelerometerBias(ba0_);
+    
+    // Move covariance to left invariant if needed
+    if (filter_.getErrorType() == inekf::ErrorType::LeftInvariant) {
+        Eigen::MatrixXd P = state.getP();
+        Eigen::MatrixXd AdjInv =  Eigen::MatrixXd::Identity(state.dimP(),state.dimP());
+        AdjInv.block(0,0,state.dimP()-state.dimTheta(),state.dimP()-state.dimTheta()) = inekf::Adjoint_SEK3(state.Xinv()); 
+        state.setP(AdjInv*P*AdjInv.transpose());
+    } 
+
     filter_.setState(state);
+
 
     // Print out initialization
     cout << "Robot's state is initialized to: \n";
@@ -712,7 +722,7 @@ void InEKF_ROS::publish() {
     state_msg.accelerometer_bias.y = ba(1); 
     state_msg.accelerometer_bias.z = ba(2); 
     state_pub_.publish(state_msg);
-
+  
     // Create and send markers for visualization
     if (publish_visualization_markers_) {
         visualization_msgs::MarkerArray markers_msg;
@@ -724,7 +734,7 @@ void InEKF_ROS::publish() {
         marker_pose.header.seq = seq_;
         marker_pose.ns = "imu_pose";
         marker_pose.id = 0;
-        marker_pose.type = visualization_msgs::Marker::POINTS;
+        marker_pose.type = visualization_msgs::Marker::SPHERE_LIST;
         marker_pose.action = visualization_msgs::Marker::ADD;
         marker_pose.scale.x = 0.01;
         marker_pose.scale.y = 0.01;
@@ -735,6 +745,7 @@ void InEKF_ROS::publish() {
         marker_pose.color.b = 0.0;
         marker_pose.lifetime = ros::Duration(dt_);
         // Sample N points in the lie algebra and project to the manifold
+        inekf::ErrorType error_type = filter_.getErrorType();
         Eigen::Matrix<double,4,4> X_pose = Eigen::Matrix<double,4,4>::Identity();
         X_pose.block<3,3>(0,0) = X.block<3,3>(0,0);
         X_pose.block<3,1>(0,3) = X.block<3,1>(0,4);
@@ -754,7 +765,12 @@ void InEKF_ROS::publish() {
                 xi(j) = distribution(generator);
             }
             xi = (L*xi).eval(); 
-            Eigen::Matrix<double,4,4> X_sample = inekf::Exp_SEK3(xi)*X_pose;
+            Eigen::Matrix<double,4,4> X_sample = Eigen::Matrix<double,4,4>::Identity();
+            if (error_type == inekf::ErrorType::LeftInvariant) {
+                X_sample = X_pose*inekf::Exp_SEK3(xi);
+            } else if (error_type == inekf::ErrorType::RightInvariant) {
+                X_sample = inekf::Exp_SEK3(xi)*X_pose;
+            }
             geometry_msgs::Point point;
             point.x = X_sample(0,3);
             point.y = X_sample(1,3);
@@ -781,9 +797,9 @@ void InEKF_ROS::publish() {
             marker.pose.orientation.y = 0.0;
             marker.pose.orientation.z = 0.0;
             marker.pose.orientation.w = 1.0;
-            marker.scale.x = 0.1;
-            marker.scale.y = 0.1;
-            marker.scale.z = 0.1;
+            marker.scale.x = 0.5;
+            marker.scale.y = 0.5;
+            marker.scale.z = 0.5;
             marker.color.a = 1.0; // Don't forget to set the alpha!
             marker.color.r = 0.0;
             marker.color.g = 1.0;
