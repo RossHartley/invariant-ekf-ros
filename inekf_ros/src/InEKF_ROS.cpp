@@ -488,9 +488,25 @@ void InEKF_ROS::update() {
             break;  
         }
         case LANDMARK: {  
+            // Correct state based on landmark measurements
             ROS_DEBUG("Correcting state with LANDMARK measurements.");
             auto landmarks = dynamic_pointer_cast<LandmarkMeasurement>(m_ptr); 
             filter_.CorrectLandmarks(landmarks->getData());  
+            // Remove old landmarks
+            const int num_landmarks_to_keep = 10;
+            int largest_id = -1;
+            inekf::vectorLandmarks vl = landmarks->getData();
+            for (int i=0; i<vl.size(); ++i) {
+                if (vl[i].id > largest_id) {
+                    largest_id = vl[i].id;
+                }
+            }
+            std::vector<int> landmarks_to_keep;
+            for (int id=largest_id; id>largest_id-num_landmarks_to_keep; --id) {
+                landmarks_to_keep.push_back(id);
+            }
+            filter_.KeepLandmarks(landmarks_to_keep);  
+            // Publish markers
             if (publish_visualization_markers_) { 
                 this->publishLandmarkMeasurementMarkers(landmarks); 
             }  

@@ -6,9 +6,9 @@ settings:
   base_frame_id: "/imu"
   pose_topic: "/pose"
   state_topic: "/state"
-  publish_visualization_markers: true
+  publish_visualization_markers: false
   visualization_markers_topic: "/markers"
-  enable_landmarks: false
+  enable_landmarks: true
   landmarks_topic: "/landmarks"
   enable_kinematics: true
   kinematics_topic: "/kinematics"
