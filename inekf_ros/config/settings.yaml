@@ -8,7 +8,7 @@ settings:
   state_topic: "/state"
   publish_visualization_markers: false
   visualization_markers_topic: "/markers"
-  enable_landmarks: true
+  enable_landmarks: false
   landmarks_topic: "/landmarks"
   enable_kinematics: true
   kinematics_topic: "/kinematics"

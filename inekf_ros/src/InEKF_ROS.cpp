@@ -95,6 +95,7 @@ void InEKF_ROS::init() {
     nh.param<bool>("settings/enable_kinematics", enable_kinematics_, false);
     nh.param<bool>("settings/initialize_state_from_first_observation", initialize_state_from_first_observation_, false);
     nh.param<bool>("settings/static_bias_initialization", static_bias_initialization_, false);
+    nh.param<bool>("settings/flat_ground", flat_ground_, false);
 
     // ----- Observation Noise Models ---- // 
     nh.param<double>("noise/landmark_std", std, 0.1);
@@ -244,9 +245,7 @@ void InEKF_ROS::initState() {
         AdjInv.block(0,0,state.dimP()-state.dimTheta(),state.dimP()-state.dimTheta()) = inekf::Adjoint_SEK3(state.Xinv()); 
         state.setP(AdjInv*P*AdjInv.transpose());
     } 
-
     filter_.setState(state);
-
 
     // Print out initialization
     cout << "Robot's state is initialized to: \n";
@@ -499,7 +498,7 @@ void InEKF_ROS::update() {
             for (int i=0; i<vl.size(); ++i) {
                 if (vl[i].id > largest_id) {
                     largest_id = vl[i].id;
-                }
+                } 
             }
             std::vector<int> landmarks_to_keep;
             for (int id=largest_id; id>largest_id-num_landmarks_to_keep; --id) {
@@ -526,16 +525,18 @@ void InEKF_ROS::update() {
             ROS_DEBUG("Setting filter's contact state with CONTACT measurements.");
             auto contacts = dynamic_pointer_cast<ContactMeasurement>(m_ptr);
             filter_.setContacts(contacts->getData());
-            // --- Test abosulte positon contact measurement (z) --- //
-            // Eigen::Vector3d measurement; measurement << 0,0,0; // Measure 0 ground height
-            // Eigen::Matrix3d covariance = 0.01*Eigen::Matrix3d::Identity();
-            // Eigen::Vector3d indices; indices << 0,0,1; // Specify that we are measuring only the z component
-            // vector<pair<int,bool>> contacts_vec = contacts->getData();
-            // for (int i=0; i<contacts_vec.size(); ++i){
-            //     if (contacts_vec[i].second == true) {
-            //         filter_.CorrectContactPosition(contacts_vec[i].first, measurement, covariance, indices);
-            //     }
-            // }
+            // --- Abosulte positon contact measurement (z) --- //
+            if (flat_ground_) {
+                Eigen::Vector3d measurement; measurement << 0,0,0; // Measure 0 ground height
+                Eigen::Matrix3d covariance = 0.01*Eigen::Matrix3d::Identity();
+                Eigen::Vector3d indices; indices << 0,0,1; // Specify that we are measuring only the z component
+                vector<pair<int,bool>> contacts_vec = contacts->getData();
+                for (int i=0; i<contacts_vec.size(); ++i){
+                    if (contacts_vec[i].second == true) {
+                        filter_.CorrectContactPosition(contacts_vec[i].first, measurement, covariance, indices);
+                    }
+                }
+            }
             break;  
         }
         default:     
@@ -566,8 +567,8 @@ void InEKF_ROS::publishLandmarkMeasurementMarkers(shared_ptr<LandmarkMeasurement
 
     geometry_msgs::Point base_point, landmark_point;
     RobotState state = filter_.getState();
-    Eigen::MatrixXd X = state.getX();
-    Eigen::Vector3d position = state.getPosition();
+    Eigen::MatrixXd X = state.getWorldX();
+    Eigen::Vector3d position = X.block<3,1>(0,4);
     base_point.x = position(0);
     base_point.y = position(1);
     base_point.z = position(2);
@@ -624,8 +625,8 @@ void InEKF_ROS::publishKinematicMeasurementMarkers(shared_ptr<KinematicMeasureme
 
     geometry_msgs::Point base_point, contact_point;
     RobotState state = filter_.getState();
-    Eigen::MatrixXd X = state.getX();
-    Eigen::Vector3d position = state.getPosition();
+    Eigen::MatrixXd X = state.getWorldX();
+    Eigen::Vector3d position = X.block<3,1>(0,4);
     base_point.x = position(0);
     base_point.y = position(1);
     base_point.z = position(2);
@@ -657,12 +658,12 @@ void InEKF_ROS::publish() {
 
     // Extract current state estimate
     RobotState state = filter_.getState();
-    Eigen::MatrixXd X = state.getX();
+    Eigen::MatrixXd X = state.getWorldX();
     Eigen::MatrixXd P = state.getP();
-    Eigen::Quaternion<double> orientation(state.getRotation());
+    Eigen::Quaternion<double> orientation(X.block<3,3>(0,0));
     orientation.normalize();
-    Eigen::Vector3d position = state.getPosition();
-    Eigen::Vector3d velocity = state.getVelocity();
+    Eigen::Vector3d velocity = X.block<3,1>(0,3);
+    Eigen::Vector3d position = X.block<3,1>(0,4);
     Eigen::Vector3d bg = state.getGyroscopeBias();
     Eigen::Vector3d ba = state.getAccelerometerBias();
 
@@ -770,6 +771,7 @@ void InEKF_ROS::publish() {
         P_pose.block<3,3>(0,3) = P.block<3,3>(0,6);
         P_pose.block<3,3>(3,0) = P.block<3,3>(6,0);
         P_pose.block<3,3>(3,3) = P.block<3,3>(6,6);
+
         Eigen::MatrixXd L( P_pose.llt().matrixL() );
         std::default_random_engine generator;
         std::normal_distribution<double> distribution(0,1);
@@ -787,6 +789,7 @@ void InEKF_ROS::publish() {
             } else if (error_type == inekf::ErrorType::RightInvariant) {
                 X_sample = inekf::Exp_SEK3(xi)*X_pose;
             }
+            
             geometry_msgs::Point point;
             point.x = X_sample(0,3);
             point.y = X_sample(1,3);

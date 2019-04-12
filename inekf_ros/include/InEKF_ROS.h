@@ -70,6 +70,7 @@ class InEKF_ROS {
         bool bias_initialized_;
         bool initialize_state_from_first_observation_;
         bool static_bias_initialization_;
+        bool flat_ground_;
 
         geometry_msgs::Point point_prev_;    
         tf::StampedTransform imu_to_base_transform_;
